@@ -19,7 +19,7 @@ export function GetUniqueNumber(): number {
 export async function exploreServers(
         ns: NS, scanDepth: 
         number, 
-        visitor: (ns: NS, serverName: string) => Promise<void>
+        visitor: (serverName: string) => Promise<void>
 ): Promise<void> {
     const seen = new Set<string>();
     const queue = new Array<DepthPair>();
@@ -30,7 +30,7 @@ export async function exploreServers(
     while (queue.length !== 0) {
         const current = <DepthPair>queue.shift();
 
-        await visitor(ns, <string>current.value);
+        await visitor(<string>current.value);
 
         const scans = ns.scan(current.value);
         

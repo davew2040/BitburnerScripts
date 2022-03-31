@@ -1,10 +1,10 @@
-import { NS } from '@ns'
+import { NS } from '@ns';
 import { exploreServers } from '/utilities';
 
 
 export async function main(ns : NS) : Promise<void> {
     const scanDepth = <number>ns.args[0];
-    await exploreServers(ns, scanDepth, (ns, serverName) => visit(ns, serverName));
+    await exploreServers(ns, scanDepth, (serverName) => visit(ns, serverName));
 } 
 
 async function visit(ns: NS, hostName: string) {
@@ -16,6 +16,6 @@ async function visit(ns: NS, hostName: string) {
         await ns.nuke(hostName); 
     }
     catch (e) {
-        ns.tprint(`ERROR = ${e}`);
+        ns.tprint(`ERROR = ${e}`); 
     }
 }
