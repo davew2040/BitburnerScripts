@@ -6,34 +6,36 @@ import { ServerNames } from './globals';
 const copyFiles = [
 	"grow.js",
 	"weaken.js",
-	"hack.js"
+	"hack.js",
+    "port-logger.js",
+    "globals.js",
+    "utilities.js"
 ]
 
 /** @param {NS} ns **/
 export async function main(ns: NS): Promise<void> {
-	const servers = serverStore.getSourceServers(ns);
+	const servers = serverStore.getSourceServers(ns).filter(s => s !== ServerNames.Home);
+
+    ns.tprint(`SERVERS = `, servers);
 
 	for (const server of servers) {
-		const nextHost = server;
 
 		try {
-			await prepareHost(ns, nextHost);
+			await prepareHost(ns, server);
 		}
 		catch (e) {
-			ns.tprint(`Encountered exception ${e} while running scripts on host ${nextHost}`);
+			ns.tprint(`Encountered exception ${e} while running scripts on host ${server}`);
 		}
 	}
 }
 
 async function prepareHost(ns: NS, hostName: string) {
-	if (ns.fileExists('BruteSSH.exe', "home")) {
-		await ns.brutessh(hostName);
-	}
-
-	await ns.nuke(hostName);
+    ns.tprint(`Preparing host ${hostName}...`);
 
 	ns.killall(hostName);
 	deleteFiles(ns, hostName);
+
+    ns.tprint(`Copying files ${copyFiles.join(", ")}`);
 
 	for (const copyFile of copyFiles) {	
 		await ns.scp(copyFile, hostName);

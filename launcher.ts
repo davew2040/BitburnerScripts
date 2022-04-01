@@ -1,25 +1,30 @@
-import { NS, ProcessInfo } from '@ns'
-import { serverStore } from './server-store.js';
-import { MyScriptNames } from './globals.js';
-import { GetUniqueNumber } from '/utilities.js';
+import { NS, } from '@ns'
+import { serverStore } from './server-store';
+import { MyScriptNames, ServerNames } from './globals';
+import { formatNumber, GetUniqueNumber } from '/utilities';
 import { 
     TargetsConfiguration, 
     SingleTargetConfiguration, 
     OperationProportions, 
     RunningProcessSummary 
 } from '/targets-configuration.js';
+import { getVictimsSummary } from '/analysis';
 
-const minimumMoneyThreshold = 0.75;
-const minimumSecurityMultiplier = 1.25;
+const minimumMoneyThreshold = 0.6;
+const minimumSecurityMultiplier = 1.5;
+const delayTimeSeconds = 5;
 const rootTargetsConfig = new TargetsConfiguration();
 
-initializeTargetsConfig(rootTargetsConfig);
-
 export async function main(ns : NS) : Promise<void> {
+    initializeTargetsConfig(ns, rootTargetsConfig);
+
+    ns.tprint(`Initialized targets, running...`);
+
     while (true) {
         try {
             updateRunningScripts(ns, rootTargetsConfig);
-            await ns.sleep(5000);
+        
+            await ns.sleep(delayTimeSeconds * 1000);
         }
         catch (e) {
             ns.tprint(`Encountered exception ${e} while running scripts`);
@@ -28,28 +33,28 @@ export async function main(ns : NS) : Promise<void> {
 }
 
 function updateRunningScripts(ns: NS, targetsConfig: TargetsConfiguration) {
-    const runningSummary = getVictimSummary(ns);
+    const runningSummary = getVictimsSummary(ns);
+ 
+	for (const target of targetsConfig.map.keys()) {
+        const targetConfig = targetsConfig.map.get(target);
 
-	for (const key of targetsConfig.map.keys()) {
-        const targetConfig = targetsConfig.map.get(key);
-
-        const currentTargetSummary = runningSummary.has(key) 
-            ? <RunningProcessSummary>runningSummary.get(key) 
+        const currentTargetSummary = runningSummary.has(target) 
+            ? <RunningProcessSummary>runningSummary.get(target) 
             : new RunningProcessSummary();
 
-        if (serverNeedsWeakening(ns, key)) {
-            //ns.tprint(`SERVER ${key} NEEDS WEAKENING`);
-            fillWithWeaken(ns, key, currentTargetSummary, <OperationProportions>targetConfig?.proportions);
+        if (serverNeedsWeakening(ns, target)) {
+            //ns.tprint(`SERVER ${target} NEEDS WEAKENING`);
+            fillWithWeaken(ns, target, currentTargetSummary, <OperationProportions>targetConfig?.proportions);
         }
-        else if (serverNeedsGrowing(ns, key)) {
-            //ns.tprint(`SERVER ${key} NEEDS GROWING`);
-            fillWithGrow(ns, key, currentTargetSummary, <OperationProportions>targetConfig?.proportions);
+        else if (serverNeedsGrowing(ns, target)) {
+            //ns.tprint(`SERVER ${target} NEEDS GROWING`);
+            fillWithGrow(ns, target, currentTargetSummary, <OperationProportions>targetConfig?.proportions);
         }
         else {
-            //ns.tprint(`SERVER ${key} CAN FILL NORMALLY`);
+            //ns.tprint(`SERVER ${target} CAN FILL NORMALLY`);
             runMissingProcesses(
                 ns, 
-                key, 
+                target, 
                 <RunningProcessSummary>currentTargetSummary, 
                 <OperationProportions>targetConfig?.proportions);
         }
@@ -57,14 +62,16 @@ function updateRunningScripts(ns: NS, targetsConfig: TargetsConfiguration) {
 }
 
 function fillWithGrow(ns: NS, targetHost: string, summary: RunningProcessSummary, expectedProportions: OperationProportions): void {
-    for (let i=0; i<expectedProportions.total - summary.total; i++) {
-        runGrow(ns, targetHost);
+    const count = expectedProportions.total - summary.totalThreads;
+    if (count > 0) {
+        runGrow(ns, targetHost, count);
     }
 }
 
 function fillWithWeaken(ns: NS, targetHost: string, summary: RunningProcessSummary, expectedProportions: OperationProportions): void {
-    for (let i=0; i<expectedProportions.total - summary.total; i++) {
-        runWeaken(ns, targetHost);
+    const count = expectedProportions.total - summary.totalThreads;
+    if (count > 0) {
+        runWeaken(ns, targetHost, expectedProportions.total - summary.totalThreads);
     }
 }
 
@@ -76,85 +83,62 @@ function serverNeedsWeakening(ns: NS, targetHost: string): boolean {
     return ns.getServerSecurityLevel(targetHost) > ns.getServerMinSecurityLevel(targetHost) * minimumSecurityMultiplier;
 }
 
-function getSourceHost(ns: NS, scriptName: string): string | null {
-    for (const serverName of serverStore.getSourceServers(ns)) {
-        const availableMemory = getFreeServerMemory(ns, serverName);
-        const scriptMemory = ns.getScriptRam(scriptName);   
-        if (availableMemory > scriptMemory) {
-            return serverName;
-        }
-    }
+// function getSourceHost(ns: NS, scriptName: string): string | null {
+//     for (const serverName of serverStore.getSourceServers(ns)) {
+//         const availableMemory = getFreeServerMemory(ns, serverName);
+//         const scriptMemory = ns.getScriptRam(scriptName);   
+//         if (availableMemory > scriptMemory) {
+//             return serverName;
+//         }
+//     }
 
-    return null;
-}
+//     return null;
+// }
 
 function getSpreadSourceHosts(ns: NS, scriptName: string, nThreads: number): Map<string, number> {
     const map = new Map<string, number>();
 
-    for (const serverName of serverStore.getSourceServers(ns)) {
+    const nThreadTarget = nThreads;
+
+    const sourceServers = serverStore.getSourceServers(ns);
+
+    for (const serverName of sourceServers) {
         const availableMemory = getFreeServerMemory(ns, serverName);
         const scriptMemory = ns.getScriptRam(scriptName);
 
         const potentialThreads = Math.min(nThreads, Math.floor(availableMemory / scriptMemory));
+
         if (potentialThreads > 0) {
             map.set(serverName, potentialThreads); 
             nThreads -= potentialThreads;
         }
-``
+
         if (nThreads === 0) {
             break;
         }
     }
 
+    // if (map.size > 0) {
+    //     ns.tprint(`Spreading ${scriptName} across ${nThreadTarget} results:`);
+    //     for (const key of map.keys()) {
+    //         ns.tprint(`  ${key} -> ${map.get(key)}`);
+    //     }
+    // }
+
     return map;
 }
 
 function getFreeServerMemory(ns: NS, hostname: string): number {
-    return ns.getServerMaxRam(hostname) - ns.getServerUsedRam(hostname);
+    return getEffectiveServerMemory(ns, hostname) - ns.getServerUsedRam(hostname);
 }
 
-function getVictimSummary(ns: NS): Map<string, RunningProcessSummary> {
-    const map = new Map<string, RunningProcessSummary>();
-
-    for (const sourceHost of serverStore.getSourceServers(ns)) {
-        const serverProcesses = ns.ps(sourceHost);
-
-        for (const serverProcess of serverProcesses) {
-            updateRunningProcessMap(ns, sourceHost, serverProcess, map);
-        }
+function getEffectiveServerMemory(ns: NS, hostName: string) : number {
+    if (hostName === ServerNames.Home) {
+        return ns.getServerMaxRam(hostName) * 0.75;
     }
-
-    return map;
-}
-
-function updateRunningProcessMap(
-    ns: NS, 
-    sourceHost: string, 
-    processInfo: ProcessInfo, 
-    map: Map<string, RunningProcessSummary>)
-    : void 
-{
-    const target = getScriptVictim(processInfo);
-
-    if (!map.has(target)) {
-        map.set(target, new RunningProcessSummary());
+    else {
+        return ns.getServerMaxRam(hostName);
     }
-
-    const summary = <RunningProcessSummary>map.get(target);
-
-    if (processInfo.filename === MyScriptNames.Grow) {
-        summary.grow++;
-    }
-    else if (processInfo.filename === MyScriptNames.Weaken) {
-        summary.weaken++;
-    }
-    else if (processInfo.filename === MyScriptNames.Hack) {
-        summary.hack++;
-    }
-}
-
-function getScriptVictim(processInfo: ProcessInfo): string {
-    return processInfo.args[0];
 }
 
 function runMissingProcesses(
@@ -164,89 +148,117 @@ function runMissingProcesses(
         expected: OperationProportions)
     : void 
 {
-    const neededGrows = expected.grow - runningSummary.grow;
-    const neededWeakens = expected.weaken - runningSummary.weaken;
-    const neededHacks = expected.hack - runningSummary.hack;
+    const neededGrows = expected.grow - runningSummary.growThreads;
+    const neededWeakens = expected.weaken - runningSummary.weakenThreads;
+    const neededHacks = expected.hack - runningSummary.hackThreads;
 
-    for (let i=0; i<neededGrows; i++) {
-        const result = runGrow(ns, targetHost);
-        if (result === null) {
-            return;
-        }
+    if (!runGrow(ns, targetHost, neededGrows)) {
+        return;
     }
 
-    for (let i=0; i<neededWeakens; i++) {
-        const result = runWeaken(ns, targetHost);
-        if (result === null) {
-            return;
-        }
+    if (!runWeaken(ns, targetHost, neededWeakens)) {
+        return;
     }
 
-    for (let i=0; i<neededHacks; i++) {
-        const result = runHack(ns, targetHost);
-        if (result === null) {
-            return;
-        }
+    runHack(ns, targetHost, neededHacks);
+}
+
+function runGrow(ns: NS, hostname: string, nThreads: number): boolean  {
+    return runUniqueScript(ns, hostname, MyScriptNames.Grow, nThreads);
+}
+
+function runWeaken(ns: NS, hostname: string, nThreads: number): boolean {
+    return runUniqueScript(ns, hostname, MyScriptNames.Weaken, nThreads);
+}
+
+function runHack(ns: NS, hostname: string, nThreads: number): boolean {
+    return runUniqueScript(ns, hostname, MyScriptNames.Hack, nThreads);
+}
+
+function runUniqueScript(ns: NS, targetHost: string, script: string, nThreads: number): boolean {
+    if (nThreads === 0) {
+        return true;
     }
+ns.getServerMaxRam
+    const hostMap = getSpreadSourceHosts(ns, script, nThreads);
+
+    let threadStartedSum = 0;
+
+    for (const key of hostMap.keys()) {
+        const threads = <number>hostMap.get(key);
+        const uniqueId = GetUniqueNumber();
+        //ns.tprint(`Running script ${script} from source ${key} on target ${targetHost} over ${threads} threads`);
+        ns.exec(script, key, threads, targetHost, uniqueId);
+        threadStartedSum += threads;
+    }
+
+    return threadStartedSum === nThreads;
 }
 
-function spreadProcess(NS: NS, script: string, target: string): void {
+function initializeTargetsConfig(ns: NS, config: TargetsConfiguration): void {
+    // 1:5:5 weaken:grow:hack seems pretty decent
+    const standardProportions = new OperationProportions(
+        240,  //weaken
+        1200,  // grow
+        900); // hack
 
+    const targets = [...serverStore.getPotentialTargets(ns)]
+        .filter(server => isPotentialTarget(ns, server))
+        .sort((a, b) => {
+            const aMoney = ns.getServerMaxMoney(a);
+            const bMoney = ns.getServerMaxMoney(b);
+
+            return -(aMoney - bMoney);
+        })
+        .slice(0, 10);
+
+    ns.tprint(`config targets = `, targets); 
+
+    for (const target of targets) {
+        ns.tprint(`TARGET ${target} = ${formatNumber(ns.getServerMoneyAvailable(target))}/${formatNumber(ns.getServerMaxMoney(target))}`);
+        config.add(
+            target, 
+            new SingleTargetConfiguration(
+                standardProportions,
+                1
+            )
+        );
+    }
+
+    addCustomTargets(ns, config);
 }
 
-function runGrow(ns: NS, hostname: string): string | null  {
-    return runUniqueScript(ns, hostname, MyScriptNames.Grow);
+function isPotentialTarget(ns: NS, hostName: string): boolean {
+    return ns.getServerMoneyAvailable(hostName) > 10000 
+        && ns.getServerMinSecurityLevel(hostName) < 30
+        && ns.getServerRequiredHackingLevel(hostName)  < 330
+        && ns.getServerSecurityLevel(hostName) < 70;
 }
 
-function runWeaken(ns: NS, hostname: string): string | null {
-    return runUniqueScript(ns, hostname, MyScriptNames.Weaken);
-}
+function addCustomTargets(ns: NS, config: TargetsConfiguration): void {
+    // config.map.delete("the-hub");
+    // config.map.delete("silver-helix");
+    // config.map.delete("crush-fitness");
 
-function runHack(ns: NS, hostname: string): string | null {
-    return runUniqueScript(ns, hostname, MyScriptNames.Hack);
-}
-
-function runUniqueScript(ns: NS, targetHost: string, script: string): string | null {
-    const sourceHost = getSourceHost(ns, script);
-    if (sourceHost === null) {
-        return null;
-    } 
-
-    const uniqueId = GetUniqueNumber();
-
-    //ns.tprint(`script = ${script}, sourceHost = ${sourceHost}, targetHost = ${targetHost}, uniqueId = ${uniqueId}`);
-    ns.exec(script, sourceHost, 1, targetHost, uniqueId);
-
-    return sourceHost;
-}
-
-function initializeTargetsConfig(config: TargetsConfiguration): void {
-    config.add(
-        "iron-gym", 
-        new SingleTargetConfiguration(
-            new OperationProportions(4, 20, 20),
-            1
-        )
-    );
-    config.add(
-        "n00dles", 
-        new SingleTargetConfiguration(
-            new OperationProportions(2, 10, 10),
-            1
-        )
-    );
-    config.add(
-        "sigma-cosmetics", 
-        new SingleTargetConfiguration(
-            new OperationProportions(4, 20, 20),
-            1
-        )
-    );
-    config.add(
-        "zer0", 
-        new SingleTargetConfiguration(
-            new OperationProportions(4, 20, 20),
-            1
-        )
-    );
+    // config.add(
+    //     "the-hub", 
+    //     new SingleTargetConfiguration(
+    //         new OperationProportions(100, 100, 0),
+    //         1
+    //     )
+    // );
+    // config.add(
+    //     "silver-helix", 
+    //     new SingleTargetConfiguration(
+    //         new OperationProportions(200, 50, 0),
+    //         1
+    //     )
+    // );
+    // config.add(
+    //     "crush-fitness", 
+    //     new SingleTargetConfiguration(
+    //         new OperationProportions(300, 300, 0),
+    //         1
+    //     )
+    // );
 }

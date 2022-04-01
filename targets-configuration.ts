@@ -38,11 +38,11 @@ export class OperationProportions {
 }
 
 export class RunningProcessSummary {
-    public grow = 0;
-    public weaken = 0;
-    public hack = 0;
+    public growThreads = 0;
+    public weakenThreads = 0;
+    public hackThreads = 0;
 
-	public get total(): number {
-		return this.grow + this.weaken + this.hack;
+	public get totalThreads(): number {
+		return this.growThreads + this.weakenThreads + this.hackThreads;
 	}
 }
