@@ -1,13 +1,19 @@
 import { NS } from '@ns'
 import { ServerNames } from '/globals';
 import { getPrivateServerName } from '/server-store';
+import { formatNumber } from '/utilities';
 
-const ramTarget = 2048; //GB
+const ramTarget = 8192; //GB
 
 export async function main(ns : NS) : Promise<void> {
+    const totalRequiredMoney = ns.getPurchasedServerCost(ramTarget)*ns.getPurchasedServerLimit();
+
+    if (ns.args[0] && (<string>ns.args[0]).toLowerCase() === "cost") {
+        ns.tprint(`Cost of operation = $${formatNumber(totalRequiredMoney)}`);
+        return;
+    }
+
     try {
-        const totalRequiredMoney = ns.getPurchasedServerCost(ramTarget)*ns.getPurchasedServerLimit();
-        
         ns.tprint(`Purchasing servers for ${totalRequiredMoney}`);
 
         if (currentMoney(ns) < totalRequiredMoney) {

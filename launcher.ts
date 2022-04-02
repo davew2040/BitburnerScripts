@@ -179,7 +179,7 @@ function runUniqueScript(ns: NS, targetHost: string, script: string, nThreads: n
     if (nThreads === 0) {
         return true;
     }
-ns.getServerMaxRam
+
     const hostMap = getSpreadSourceHosts(ns, script, nThreads);
 
     let threadStartedSum = 0;
@@ -198,9 +198,9 @@ ns.getServerMaxRam
 function initializeTargetsConfig(ns: NS, config: TargetsConfiguration): void {
     // 1:5:5 weaken:grow:hack seems pretty decent
     const standardProportions = new OperationProportions(
-        240,  //weaken
-        1200,  // grow
-        900); // hack
+        400,  //weaken
+        3000,  // grow
+        2000); // hack
 
     const targets = [...serverStore.getPotentialTargets(ns)]
         .filter(server => isPotentialTarget(ns, server))
@@ -229,9 +229,9 @@ function initializeTargetsConfig(ns: NS, config: TargetsConfiguration): void {
 }
 
 function isPotentialTarget(ns: NS, hostName: string): boolean {
-    return ns.getServerMoneyAvailable(hostName) > 10000 
+    return ns.getServerMoneyAvailable(hostName) > 1 
         && ns.getServerMinSecurityLevel(hostName) < 30
-        && ns.getServerRequiredHackingLevel(hostName)  < 330
+        && ns.getServerRequiredHackingLevel(hostName)  < 370
         && ns.getServerSecurityLevel(hostName) < 70;
 }
 

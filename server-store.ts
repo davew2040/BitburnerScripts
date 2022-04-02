@@ -2,7 +2,7 @@ import { NS } from '@ns'
 import { ServerNames } from '/globals';
 import { exploreServers } from '/utilities';
 
-const privateServerPrefix = 'pserv';
+export const privateServerPrefix = 'pserv';
 const hackedServers = [
 	'n00dles',
 	'foodnstuff',
