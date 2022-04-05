@@ -198,9 +198,9 @@ function runUniqueScript(ns: NS, targetHost: string, script: string, nThreads: n
 function initializeTargetsConfig(ns: NS, config: TargetsConfiguration): void {
     // 1:5:5 weaken:grow:hack seems pretty decent
     const standardProportions = new OperationProportions(
-        400,  //weaken
-        3000,  // grow
-        2000); // hack
+        1000,  //weaken
+        4000,  // grow
+        3000); // hack
 
     const targets = [...serverStore.getPotentialTargets(ns)]
         .filter(server => isPotentialTarget(ns, server))

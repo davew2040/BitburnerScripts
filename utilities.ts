@@ -1,4 +1,4 @@
-import { ServerNames } from "/globals";
+import { MyScriptNames, ServerNames } from "/globals";
 
 class DepthPair {
     value: string;
