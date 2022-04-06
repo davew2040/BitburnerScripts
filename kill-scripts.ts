@@ -4,7 +4,8 @@ import { serverStore } from '/server-store'
 import { exploreServers } from '/utilities'
 
 const protectedScripts = [
-    MyScriptNames.LogCollect
+    MyScriptNames.LogCollect,
+    MyScriptNames.LogPrune
 ]
 
 export async function main(ns : NS) : Promise<void> {

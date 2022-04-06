@@ -9,6 +9,7 @@ class ScriptNames {
     public Hack = "hack.js";
     public HackByPercentage = "hack-percentage.js";
     public LogCollect = "log-collect.js";
+    public LogPrune = "log-prune.js";
 }
 
 export class Ports {

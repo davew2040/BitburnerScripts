@@ -131,3 +131,11 @@ export function getServerMemoryAvailable(ns: NS, sourceName: string) : number {
         return ns.getServerMaxRam(sourceName)*otherServerScriptMemory - ns.getServerUsedRam(sourceName)
     }
 }
+
+export function orderBy<T>(values: Array<T>, mapper: (value:T) => number): Array<T> {
+    return [...values].sort((a, b) => mapper(a) - mapper(b));
+}
+
+export function orderByDescending<T>(values: Array<T>, mapper: (value:T) => number): Array<T> {
+    return orderBy(values, val => -mapper(val));
+}

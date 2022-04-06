@@ -6,20 +6,21 @@ import { serverStore } from '/server-store';
 import { getServerMemoryAvailable } from '/utilities';
 
 const growWeakenBuffer = 1.1 // Add a small buffer to account for math not always adding up
-const maxPercentage = 0.30;
+let maxPercentage = 0.50;
 
 export async function main(ns : NS) : Promise<void> {
     startAttackCycle(ns);
 }
 
 function startAttackCycle(ns: NS) {
-    // const source = "home";
-    // const target = "phantasy";
-    
-    // const optimalPercentage = getOptimalHackPercentage(ns, source, target);
-    // const totalThreads = getTotalThreadsForAttack(ns, source, target, optimalPercentage);
-    
-    // launchHackCycle(ns, source, target, totalThreads.weaken, totalThreads.growth, totalThreads.hack);
+    if (ns.args[0] && typeof ns.args[0] === "number") {
+        if (ns.args[0] > 0 && ns.args[0] < 1) {
+            maxPercentage = ns.args[0];
+        }
+        else {
+            maxPercentage = ns.args[0] / 100;
+        }
+    }
 
     allocateTargetsToServers(
         ns, 
@@ -36,7 +37,7 @@ function getCandidateTargets(ns:NS): Array<string> {
 function isCandidateTarget(ns:NS, targetHost: string): boolean {
     return ns.getServerMoneyAvailable(targetHost) > 0
         && ns.getServerMaxMoney(targetHost) > 0
-        && ns.getServerRequiredHackingLevel(targetHost) < ns.getHackingLevel();
+        && ns.getServerRequiredHackingLevel(targetHost) <= ns.getHackingLevel();
 }
 
 function getTotalThreadsForAttack(ns: NS, source: string, target: string, hackPercent: number): HackThreadSummary {
@@ -91,7 +92,7 @@ function allocateTargetsToServers(ns: NS, sources: Array<string>, targets: Array
         }
         const threadSummary = getTotalThreadsForAttack(ns, source, target, optimalPercentage);
 
-        ns.tprint(`Launching hacks on ${target} from ${source} for ${optimalPercentage*100}% of money`);
+        ns.tprint(`Launching hacks on ${target} from ${source} for ${Math.round(optimalPercentage*100)}% of money`);
 
         launchHackCycle(ns, ServerNames.Home, source, target, 
             threadSummary.weaken, threadSummary.growth, threadSummary.hack);
