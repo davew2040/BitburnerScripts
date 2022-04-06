@@ -1,11 +1,10 @@
 import { NS } from '@ns'
-import { PortLogger } from './port-logger';
-import { Ports } from '/globals';
+import { PortLogger, PortLoggerTypes } from './port-logger';
 import { formatNumber } from '/utilities';
 
 export async function main(ns : NS) : Promise<void> {
     const targetHost = <string>ns.args[0];
-    const logger = new PortLogger(Ports.LogsGrow);
+    const logger = new PortLogger(PortLoggerTypes.LogGrow);
 
     const initialMoney = ns.getServerMoneyAvailable(targetHost);
     const moneyLimit = ns.getServerMaxMoney(targetHost);

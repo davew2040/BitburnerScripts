@@ -3,13 +3,13 @@ import { ServerNames } from '/globals';
 import { getPrivateServerName } from '/server-store';
 import { formatNumber } from '/utilities';
 
-const ramTarget = 65536; //GB
+const ramTarget = Math.pow(2, 12); 
 
 export async function main(ns : NS) : Promise<void> {
     const totalRequiredMoney = ns.getPurchasedServerCost(ramTarget)*ns.getPurchasedServerLimit();
 
-    if (ns.args[0] && (<string>ns.args[0]).toLowerCase() === "cost") {
-        ns.tprint(`Cost of operation = $${formatNumber(totalRequiredMoney)}`);
+    if (!ns.args[0] || (<string>ns.args[0]).toLowerCase() !== "update") {
+        ns.tprint(`Cost to buy servers with ${ramTarget}GB = $${formatNumber(totalRequiredMoney)}`);
         return;
     }
 

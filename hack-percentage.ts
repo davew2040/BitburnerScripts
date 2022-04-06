@@ -2,11 +2,14 @@ import { NS } from '@ns'
 import { notStrictEqual } from 'assert';
 import { stubTrue } from 'lodash';
 import { Costs, MyScriptNames, ServerNames } from '/globals';
+import { PortLogger, PortLoggerTypes } from '/port-logger';
 import { grow, hack, weaken } from '/process-launchers';
 import { serverStore } from '/server-store';
+import { getServerMemoryAvailable } from '/utilities';
 
 const cycleBuffer = 1000;
 const growWeakenBuffer = 1.1;
+const logger = new PortLogger(PortLoggerTypes.LogDefault);
 
 interface Input {
     target: string,
@@ -40,21 +43,21 @@ export async function main(ns : NS) : Promise<void> {
 
     while (true) {
         try {
-            dumpServerStats(ns, target);
+            await dumpServerStats(ns, target);
 
             if (ns.getServerMoneyAvailable(target) < 0.99 * ns.getServerMaxMoney(target) ||
                     ns.getServerSecurityLevel(target) > 1.01*ns.getServerMinSecurityLevel(target)) {
-                ns.tprint(`Starting grow/weaken cycle for ${cycleTime}ms`);
-                doPrepare(ns, input);
+                await logger.log(ns, `Starting grow/weaken cycle for ${cycleTime}ms`);
+                await doPrepare(ns, input);
             }
             else {
                 const cycleTime = weakenTime+1000;
     
-                ns.tprint(`Starting hack cycle for ${cycleTime}ms`);
+                await logger.log(ns, `Starting hack cycle for ${cycleTime}ms`);
     
-                ns.tprint(`hacking on ${inputHackThreads} threads`);
-                ns.tprint(`growing on ${inputGrowThreads} threads`);
-                ns.tprint(`weakening on ${inputWeakenThreads} threads`);
+                await logger.log(ns, `hacking on ${inputHackThreads} threads`);
+                await logger.log(ns, `growing on ${inputGrowThreads} threads`);
+                await logger.log(ns, `weakening on ${inputWeakenThreads} threads`);
     
                 hack(ns, source, target, inputHackThreads);
                 grow(ns, source, target, inputGrowThreads);
@@ -64,12 +67,12 @@ export async function main(ns : NS) : Promise<void> {
             await ns.sleep(cycleTime);
         }
         catch (e) {
-            ns.tprint(`Error occurred while hacking percentage: ${e}`);
+            await logger.log(ns, `Error occurred while hacking percentage: ${e}`);
         }
     }
 }
 
-function doPrepare(ns:NS, input: Input) {
+async function doPrepare(ns:NS, input: Input) {
     const prepareGrowThreads = Math.ceil(
             growWeakenBuffer * ns.growthAnalyze(
                 input.target,  
@@ -81,26 +84,26 @@ function doPrepare(ns:NS, input: Input) {
         + (prepareGrowThreads * Costs.growSecurityCostPerThread);
     const prepareWeakenThreads = securityDeficit / Costs.weakenSecurityReductionPerThread;
 
-    const [scaledGrowThreads, scaledWeakenThreads] = scalePreparationToInput(ns, input.source, prepareGrowThreads, prepareWeakenThreads);
+    const [scaledGrowThreads, scaledWeakenThreads] = scalePreparationToInput(ns, input.source, prepareGrowThreads, prepareWeakenThreads, input);
 
     const clampedGrowThreads =  Math.ceil(Math.max(scaledGrowThreads, 1));
     const clampedWeakenThreads =  Math.ceil(Math.max(scaledWeakenThreads, 1));
 
-    ns.tprint(`Growing on ${clampedGrowThreads} threads`);
-    ns.tprint(`Weakening on ${clampedWeakenThreads} threads`);
+    await logger.log(ns, `Growing on ${clampedGrowThreads} threads`);
+    await logger.log(ns, `Weakening on ${clampedWeakenThreads} threads`);
 
     grow(ns, input.source, input.target, Math.max(clampedGrowThreads, 1));
     weaken(ns, input.source, input.target, Math.max(clampedWeakenThreads, 1));
 }
 
-function scalePreparationToInput(ns: NS, host:string, prepareGrow: number, prepareWeaken: number)
+function scalePreparationToInput(ns: NS, host:string, prepareGrow: number, prepareWeaken: number, input: Input)
         : [number, number] {
     const totalScriptMemory = prepareGrow * ns.getScriptRam(MyScriptNames.Grow) 
             + prepareWeaken * ns.getScriptRam(MyScriptNames.Weaken);
-    const totalHostMemory = ns.getServerMaxRam(host) - ns.getServerUsedRam(host);
+    const totalHostMemory = getServerMemoryAvailable(ns, host);
 
     if (totalScriptMemory > totalHostMemory) {
-        const ratio = 0.9 * (totalHostMemory / totalScriptMemory);
+        const ratio = (input.growThreads+input.hackThreads+input.weakenThreads) / (prepareGrow+prepareWeaken);
         return [prepareGrow * ratio, prepareWeaken * ratio];
     }
     else {
@@ -108,14 +111,14 @@ function scalePreparationToInput(ns: NS, host:string, prepareGrow: number, prepa
     }
 }
 
-function dumpServerStats(ns: NS, hostName: string): void {
+async function dumpServerStats(ns: NS, hostName: string): Promise<void> {
     const currentSecurity = ns.getServerSecurityLevel(hostName);
     const minSecurity = ns.getServerMinSecurityLevel(hostName);
 
     const currentMoney = ns.getServerMoneyAvailable(hostName);
     const maxMoney = ns.getServerMaxMoney(hostName);
 
-    ns.tprint(`server stats for target = ${hostName}`);
-    ns.tprint(`security ${currentSecurity}/${minSecurity}`);
-    ns.tprint(`money = ${currentMoney}/${maxMoney}`);
+    await logger.log(ns, `server stats for target = ${hostName}`);
+    await logger.log(ns, `security ${currentSecurity}/${minSecurity}`);
+    await logger.log(ns, `money = ${currentMoney}/${maxMoney}`);
 }

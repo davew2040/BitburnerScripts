@@ -3,10 +3,10 @@ import { Server } from 'http';
 import { Costs, MyScriptNames, ServerNames } from '/globals';
 import { launchHackCycle } from '/process-launchers';
 import { serverStore } from '/server-store';
+import { getServerMemoryAvailable } from '/utilities';
 
-const homeScriptMemory = 0.8;
-const otherServerScriptMemory = 0.9;
 const growWeakenBuffer = 1.1 // Add a small buffer to account for math not always adding up
+const maxPercentage = 0.30;
 
 export async function main(ns : NS) : Promise<void> {
     startAttackCycle(ns);
@@ -21,7 +21,12 @@ function startAttackCycle(ns: NS) {
     
     // launchHackCycle(ns, source, target, totalThreads.weaken, totalThreads.growth, totalThreads.hack);
 
-    allocateTargetsToServers(ns, serverStore.getSourceServers(ns), getCandidateTargets(ns));
+    allocateTargetsToServers(
+        ns, 
+        serverStore.getSourceServers(ns), 
+        getCandidateTargets(ns),
+        getServerFreeMemoryProfile(ns)
+    );
 }
 
 function getCandidateTargets(ns:NS): Array<string> {
@@ -31,11 +36,11 @@ function getCandidateTargets(ns:NS): Array<string> {
 function isCandidateTarget(ns:NS, targetHost: string): boolean {
     return ns.getServerMoneyAvailable(targetHost) > 0
         && ns.getServerMaxMoney(targetHost) > 0
-        && ns.getServerRequiredHackingLevel(targetHost) < 400;
+        && ns.getServerRequiredHackingLevel(targetHost) < ns.getHackingLevel();
 }
 
 function getTotalThreadsForAttack(ns: NS, source: string, target: string, hackPercent: number): HackThreadSummary {
-    if (hackPercent > .99 || hackPercent < 0.01) {
+    if (hackPercent > .995 || hackPercent < 0.005) {
         throw "hackPercent must be between 0 and 1";
     }
 
@@ -61,10 +66,9 @@ function getServerFreeMemoryProfile(ns: NS): Map<string, number> {
     return map;
 }
 
-function allocateTargetsToServers(ns: NS, sources: Array<string>, targets: Array<string>): void {
-    const orderedSources = [...sources].sort((a, b) => {
-        return getServerMemoryAvailable(ns, b) - getServerMemoryAvailable(ns, a);
-    });
+function allocateTargetsToServers(ns: NS, sources: Array<string>, targets: Array<string>, freeMemoryMap: Map<string, number>): void {
+    let orderedSources = [...sources];
+
     const orderedTargets = [...targets]
         .sort((a, b) => {
             return ns.getServerMaxMoney(b) - ns.getServerMaxMoney(a);
@@ -75,26 +79,35 @@ function allocateTargetsToServers(ns: NS, sources: Array<string>, targets: Array
             return;
         }
 
-        const source = <string>orderedSources.shift();
+        orderedSources = orderedSources.sort((a, b) => {
+            return <number>freeMemoryMap.get(b) - <number>freeMemoryMap.get(a);
+        });
 
-        const optimalPercentage = getOptimalHackPercentage(ns, source, target);
+        const source = orderedSources[0];
+
+        const optimalPercentage = getOptimalHackPercentage(ns, source, target, maxPercentage, freeMemoryMap);
+        if (optimalPercentage === 0) {
+            continue;
+        }
         const threadSummary = getTotalThreadsForAttack(ns, source, target, optimalPercentage);
 
         ns.tprint(`Launching hacks on ${target} from ${source} for ${optimalPercentage*100}% of money`);
 
         launchHackCycle(ns, ServerNames.Home, source, target, 
             threadSummary.weaken, threadSummary.growth, threadSummary.hack);
+
+        updateFreeMemoryMap(ns, freeMemoryMap, source, threadSummary);
     }
 }
 
-function getOptimalHackPercentage(ns: NS, source: string, target: string): number {
-    for (let i=0.99; i>0; i -= 0.01) {
+function getOptimalHackPercentage(ns: NS, source: string, target: string, maxPercent = 0.99, freeMemoryMap: Map<string, number>): number {
+    for (let i=maxPercent; i>0; i -= 0.01) {
         const threadsBreakdown = getTotalThreadsForAttack(ns, source, target, i);
-        if (allocationFitsInHost(ns, source, hackSummaryToMap(threadsBreakdown))) {
+        if (allocationFitsInHost(ns, source, hackSummaryToMap(threadsBreakdown), freeMemoryMap)) {
             return i;
         }
     }
-    throw "Found no valid hacking percentage.";
+    return 0;
 }
 
 function hackSummaryToMap(summary: HackThreadSummary): Map<string, number> {
@@ -107,24 +120,24 @@ function hackSummaryToMap(summary: HackThreadSummary): Map<string, number> {
     return map;
 }
 
-function allocationFitsInHost(ns: NS, sourceName: string, scriptAllocation: Map<string, number>): boolean {
+function allocationFitsInHost(ns: NS, sourceName: string, scriptAllocation: Map<string, number>, freeMemoryMap: Map<string, number>): boolean {
     let memoryRequired = 0;
 
     for (const kvp of scriptAllocation) {
         memoryRequired += ns.getScriptRam(kvp[0]) * kvp[1];
     }
 
-    return getServerMemoryAvailable(ns, sourceName) > memoryRequired;
+    return <number>freeMemoryMap.get(sourceName) > memoryRequired;
 }
 
-function updateFreeMemoryMap(ns: NS, freeMemoryMap: Map<string, number>, threadsAllocation: Map<string, number>, scriptName: string): void {
-    for (const memoryKey of freeMemoryMap.keys()) {
-        if (threadsAllocation.has(memoryKey)) {
-            const currentMemoryFree = <number>freeMemoryMap.get(memoryKey);
-            const newMemoryFree = currentMemoryFree - (<number>threadsAllocation.get(memoryKey) * ns.getScriptRam(scriptName));
-            freeMemoryMap.set(memoryKey, newMemoryFree);
-        }
-    }
+function updateFreeMemoryMap(ns: NS, freeMemoryMap: Map<string, number>, source: string, hackThreadSummary: HackThreadSummary): void {
+    let serverFreeMemory = <number>freeMemoryMap.get(source);
+
+    serverFreeMemory -= hackThreadSummary.hack * ns.getScriptRam(MyScriptNames.Hack);
+    serverFreeMemory -= hackThreadSummary.growth * ns.getScriptRam(MyScriptNames.Grow);
+    serverFreeMemory -= hackThreadSummary.weaken * ns.getScriptRam(MyScriptNames.Weaken);
+
+    freeMemoryMap.set(source, serverFreeMemory);
 }
 
 function getServerVirtualThreadCapacity(ns: NS, scriptName: string, sourceName: string, 
@@ -140,15 +153,6 @@ function operationMultiplier(ns: NS, sourceName: string, scriptName: string): nu
     }
 
     return 1;
-}
-
-function getServerMemoryAvailable(ns: NS, sourceName: string) : number {
-    if (sourceName === ServerNames.Home) {
-        return ns.getServerMaxRam(sourceName)*homeScriptMemory - ns.getServerUsedRam(sourceName);
-    }
-    else {
-        return ns.getServerMaxRam(sourceName)*otherServerScriptMemory - ns.getServerUsedRam(sourceName)
-    }
 }
 
 class HackThreadSummary {

@@ -8,18 +8,18 @@ class ScriptNames {
     public Weaken = "weaken.js";
     public Hack = "hack.js";
     public HackByPercentage = "hack-percentage.js";
+    public LogCollect = "log-collect.js";
 }
 
 export class Ports {
-    public static LogsGrow = 1;
-    public static LogsWeaken = 2;
-    public static LogsHack = 3;
+    public static GenericLogger = 1;
 }
 
 export class LogFiles {
-    public static LogsGrow = "grow.log.txt";
-    public static LogsHack = "hack.log.txt";
-    public static LogsWeaken = "weaken.log.txt";
+    public static LogsDefault = "log.default.txt";
+    public static LogsGrow = "log.grow.txt";
+    public static LogsHack = "log.hack.txt";
+    public static LogsWeaken = "log.weaken.txt";
 }
 
 export class Costs {

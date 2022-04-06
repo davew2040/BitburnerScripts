@@ -1,14 +1,15 @@
 import { NS } from '@ns'
 import { LogFiles, Ports } from '/globals'
+import { PortLoggerMessage, PortLoggerTypes } from '/port-logger';
 
-const portFileMap = new Map<number, string>(
+export const typeFileMap = new Map<PortLoggerTypes, string>(
     [
-        [ Ports.LogsGrow, LogFiles.LogsGrow ],
-        [ Ports.LogsHack, LogFiles.LogsHack ],
-        [ Ports.LogsWeaken, LogFiles.LogsWeaken ],
+        [ PortLoggerTypes.LogDefault, LogFiles.LogsDefault ],
+        [ PortLoggerTypes.LogGrow, LogFiles.LogsGrow ],
+        [ PortLoggerTypes.LogHack, LogFiles.LogsHack ],
+        [ PortLoggerTypes.LogWeaken, LogFiles.LogsWeaken ],
     ]
 );
-
         
 export async function main(ns : NS) : Promise<void> {
     while (true) {
@@ -22,13 +23,19 @@ async function flushLogs(ns: NS): Promise<void> {
 }
 
 async function readPorts(ns: NS) {
-    for (const port of portFileMap.keys()) {
-        const fileName = <string>portFileMap.get(port);
-        const portHandle = ns.getPortHandle(port);
+    const portHandle = ns.getPortHandle(Ports.GenericLogger);
 
-        while (!portHandle.empty()) { 
-            const portValue = ns.readPort(port);
-            await ns.write(fileName, portValue, "a");
-        }
+    while (!portHandle.empty()) { 
+        const portValue = <string>ns.readPort(Ports.GenericLogger);
+        const json = JSON.parse(portValue);
+
+        const parsedValue: PortLoggerMessage = new PortLoggerMessage(
+            json["message"],
+            json["type"],
+            new Date(Date.parse(json["date"]))
+        )
+
+        const fileName = <string>typeFileMap.get(parsedValue.type);
+        await ns.write(fileName, `${parsedValue.date.toTimeString()} - ${parsedValue.message}\n`, "a");
     }
 }

@@ -1,16 +1,16 @@
 import { NS } from '@ns'
-import { MyScriptNames, ServerNames } from '/globals';
+import { MyScriptNames } from '/globals';
 
 
-export function hack(ns: NS, source: string, target: string, threads: number) {
+export function hack(ns: NS, source: string, target: string, threads: number): void {
     ns.exec(MyScriptNames.Hack, source, threads, target);
 }
 
-export function grow(ns: NS, source: string, target: string, threads: number) {
+export function grow(ns: NS, source: string, target: string, threads: number): void {
     ns.exec(MyScriptNames.Grow, source, threads, target);
 }
 
-export function weaken(ns: NS, source: string, target: string, threads: number) {
+export function weaken(ns: NS, source: string, target: string, threads: number): void {
     ns.exec(MyScriptNames.Weaken, source, threads, target);
 }
 

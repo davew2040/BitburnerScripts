@@ -1,5 +1,8 @@
 import { MyScriptNames, ServerNames } from "/globals";
 
+const homeScriptMemory = 0.8;
+const otherServerScriptMemory = 0.9;
+
 class DepthPair {
     value: string;
     parent: string;
@@ -117,5 +120,14 @@ export function formatNumber(someNumber: number): string {
     }
     else {
         return someNumber.toString();
+    }
+}
+
+export function getServerMemoryAvailable(ns: NS, sourceName: string) : number {
+    if (sourceName === ServerNames.Home) {
+        return ns.getServerMaxRam(sourceName)*homeScriptMemory - ns.getServerUsedRam(sourceName);
+    }
+    else {
+        return ns.getServerMaxRam(sourceName)*otherServerScriptMemory - ns.getServerUsedRam(sourceName)
     }
 }

@@ -1,10 +1,9 @@
 import { NS } from '@ns'
-import { PortLogger } from './port-logger';
-import { Ports } from '/globals';
+import { PortLogger, PortLoggerTypes } from './port-logger';
 
 export async function main(ns : NS) : Promise<void> {
     const targetHost = <string>ns.args[0];
-    const logger = new PortLogger(Ports.LogsWeaken);
+    const logger = new PortLogger(PortLoggerTypes.LogWeaken);
 
     const initialSecurity = ns.getServerSecurityLevel(targetHost);
     const minSecurity = ns.getServerMinSecurityLevel(targetHost);

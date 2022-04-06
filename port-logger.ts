@@ -1,26 +1,43 @@
 import { NS } from '@ns'
+import { Ports } from '/globals';
+
+export enum PortLoggerTypes {
+    LogDefault,
+    LogGrow,
+    LogWeaken,
+    LogHack
+}
 
 export class PortLoggerMessage {
     public message: string;
-    public port: number;
+    public type: PortLoggerTypes;
+    public date: Date;
 
-    constructor(message: string, port: number) {
+    constructor(message: string, type: PortLoggerTypes, date: (Date | null) = null) {
         this.message = message;
-        this.port = port;
+        this.type = type;
+        if (date === null) {
+            this.date = new Date();
+        }
+        else {
+            this.date = date;
+        }
     }
 }
 
 export class PortLogger {
-    private _port
+    private type: PortLoggerTypes;
 
-    constructor(port: number) {
-        this._port = port;
+    constructor(type: PortLoggerTypes) {
+        this.type = type;
     }
  
     public async log(ns: NS, message: string): Promise<void> {
+        const portLoggerMessage = new PortLoggerMessage(message, this.type);
+
         await ns.writePort(
-            this._port, 
-            `${this.formatCurrentDate()} - ${message}"\n"`
+            Ports.GenericLogger, 
+            JSON.stringify(portLoggerMessage)
         );
     }
 
