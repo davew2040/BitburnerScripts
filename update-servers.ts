@@ -3,7 +3,7 @@ import { ServerNames } from '/globals';
 import { getPrivateServerName } from '/server-store';
 import { formatNumber } from '/utilities';
 
-const ramTarget = Math.pow(2, 14); 
+const ramTarget = Math.pow(2, 13); 
 
 export async function main(ns : NS) : Promise<void> {
     const totalRequiredMoney = ns.getPurchasedServerCost(ramTarget)*ns.getPurchasedServerLimit();

@@ -62,20 +62,52 @@ class CoresHandler implements NodeHandler {
 const tiers: Array<TypeValuePair> = [
 	{
 		type: UpgradeType.Nodes, 
+		value: 10,
+	},
+	{	
+		type: UpgradeType.Level, 
+		value: 100	
+	},
+	{	
+		type: UpgradeType.Ram, 
+		value: 8
+	},
+	{	
+		type: UpgradeType.Cores, 
+		value: 2
+	},
+	{
+		type: UpgradeType.Nodes, 
 		value: 20,
 	},
 	{	
 		type: UpgradeType.Level, 
-		value: Maximums.Level	
+		value: 200	
 	},
 	{	
 		type: UpgradeType.Ram, 
-		value: Maximums.Ram	
+		value: Maximums.Ram
 	},
 	{	
 		type: UpgradeType.Cores, 
-		value: Maximums.Cores	
-	}
+		value: Maximums.Cores
+	},
+	{
+		type: UpgradeType.Nodes, 
+		value: 23,
+	},
+	{	
+		type: UpgradeType.Level, 
+		value: 200	
+	},
+	{	
+		type: UpgradeType.Ram, 
+		value: Maximums.Ram
+	},
+	{	
+		type: UpgradeType.Cores, 
+		value: Maximums.Cores
+	},
 ];
 
 /** @param {NS} ns **/

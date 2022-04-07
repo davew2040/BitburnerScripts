@@ -78,7 +78,7 @@ export function exploreServers(
 export function findPath(ns: NS, target: string): Array<string> {
     const map = new Map<string, string>();
 
-    exploreServers(ns, 10, (server, parent) => {
+    exploreServers(ns, 20, (server, parent) => {
         map.set(server, parent);
     });
 

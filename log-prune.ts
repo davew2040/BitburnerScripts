@@ -6,7 +6,7 @@ const maxLines = 10000;
 const prunedLines = 500;
 
 export async function main(ns : NS) : Promise<void> {
-    const files = typeFileMap.values();
+    const files = Array.from(typeFileMap.values());
 
     while (true) {
         for (const file of files) {

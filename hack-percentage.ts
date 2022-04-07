@@ -38,10 +38,10 @@ export async function main(ns : NS) : Promise<void> {
         hackThreads: inputHackThreads
     }
 
-    const weakenTime = ns.getWeakenTime(target);
-    const cycleTime = weakenTime + cycleBuffer;
-
     while (true) {
+        const weakenTime = ns.getWeakenTime(target);
+        const cycleTime = weakenTime + cycleBuffer;
+        
         try {
             await dumpServerStats(ns, target);
 

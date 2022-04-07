@@ -45,7 +45,7 @@ export function getPrivateServerName(index: number): string {
 function findLargePotentialTargetSet(ns: NS) {
 	const targets: Array<string> = [];
 
-	exploreServers(ns, 7, serverName => {
+	exploreServers(ns, 10, serverName => {
 		if (ns.hasRootAccess(serverName)) {
 			targets.push(serverName);
 		}
