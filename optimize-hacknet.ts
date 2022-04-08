@@ -4,7 +4,7 @@ import { ServerNames } from "/globals";
 import { orderByDescending } from "/utilities";
 
 const breakEvenTimeSeconds = 60*60*1000;
-const timeBetweenActionsMilliseconds = 50;
+const timeBetweenActionsMilliseconds = 5;
 const spinTimeMilliseconds = 3000;
 const moneyBuffer = 10*1000*1000;
 

@@ -1,13 +1,19 @@
 import { NS } from '@ns'
 
 import { serverStore } from './server-store';
-import { ServerNames } from './globals';
+import { MyScriptNames, ServerNames } from './globals';
 
 const copyFiles = [
-	"grow.js",
-	"weaken.js",
-	"hack.js",
-    "port-logger.js",
+	MyScriptNames.FactionGain,
+	MyScriptNames.Grow,
+	MyScriptNames.Weaken,
+	MyScriptNames.Hack,
+    MyScriptNames.PortLogger,
+	MyScriptNames.Share,
+	MyScriptNames.HackByPercentageSingle,
+	MyScriptNames.HackByPercentageSet,
+	MyScriptNames.ProcessLaunchers,
+	MyScriptNames.UniqueGenerator,
     "globals.js",
     "utilities.js"
 ]
@@ -32,8 +38,8 @@ export async function main(ns: NS): Promise<void> {
 async function prepareHost(ns: NS, hostName: string) {
     ns.tprint(`Preparing host ${hostName}...`);
 
-	ns.killall(hostName);
-	deleteFiles(ns, hostName);
+	//ns.killall(hostName);
+	//deleteFiles(ns, hostName);
 
     ns.tprint(`Copying files ${copyFiles.join(", ")}`);
 

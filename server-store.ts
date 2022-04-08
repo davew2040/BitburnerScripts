@@ -3,15 +3,6 @@ import { ServerNames } from '/globals';
 import { exploreServers } from '/utilities';
 
 export const privateServerPrefix = 'pserv';
-const hackedServers = [
-	'n00dles',
-	'foodnstuff',
-	'sigma-cosmetics',
-	'joesguns',
-	'hong-fang-tea',
-	'harakiri-sushi',
-	'iron-gym'
-];
 
 export class ServerStore {
 	private _stolenServers: Array<string> = [];
@@ -22,17 +13,11 @@ export class ServerStore {
 	}
 
 	getStolenServers(ns: NS): Array<string> {
-		if (this._stolenServers.length === 0) {
-			this._stolenServers = findStolenServers(ns)
-		}
-		return this._stolenServers;
+		return  findStolenServers(ns);
 	}
 
 	getPotentialTargets(ns: NS): Array<string> {
-		if (this._targetServers.length === 0) {
-			this._targetServers = findLargePotentialTargetSet(ns)
-		}
-		return this._targetServers;
+		return findLargePotentialTargetSet(ns);
 	}
 }
 

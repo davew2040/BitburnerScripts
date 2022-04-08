@@ -10,6 +10,15 @@ class ScriptNames {
     public HackByPercentage = "hack-percentage.js";
     public LogCollect = "log-collect.js";
     public LogPrune = "log-prune.js";
+    public FactionGain = "faction-gain.js";
+    public PortLogger = "port-logger.js";
+    public Share = "share.js";
+    public KillScripts = "kill-scripts.js";
+    public ProcessLaunchers = "process-launchers.js";
+    public UniqueGenerator = "unique-generator.js";
+
+    public HackByPercentageSingle = "hack-percentage-single.js";
+    public HackByPercentageSet = "hack-percentage-set.js";
 }
 
 export class Ports {
@@ -21,6 +30,7 @@ export class LogFiles {
     public static LogsGrow = "log.grow.txt";
     public static LogsHack = "log.hack.txt";
     public static LogsWeaken = "log.weaken.txt";
+    public static LogsTemp = "log.temp.txt";
 }
 
 export class Costs {

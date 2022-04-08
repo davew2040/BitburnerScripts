@@ -1,19 +1,20 @@
 import { NS } from '@ns'
 import { Ports } from '/globals';
 
-export enum PortLoggerTypes {
+export enum PortLoggerType {
     LogDefault,
     LogGrow,
     LogWeaken,
-    LogHack
+    LogHack,
+    LogTemp
 }
 
 export class PortLoggerMessage {
     public message: string;
-    public type: PortLoggerTypes;
+    public type: PortLoggerType;
     public date: Date;
 
-    constructor(message: string, type: PortLoggerTypes, date: (Date | null) = null) {
+    constructor(message: string, type: PortLoggerType, date: (Date | null) = null) {
         this.message = message;
         this.type = type;
         if (date === null) {
@@ -26,9 +27,9 @@ export class PortLoggerMessage {
 }
 
 export class PortLogger {
-    private type: PortLoggerTypes;
+    private type: PortLoggerType;
 
-    constructor(type: PortLoggerTypes) {
+    constructor(type: PortLoggerType) {
         this.type = type;
     }
  
@@ -39,9 +40,5 @@ export class PortLogger {
             Ports.GenericLogger, 
             JSON.stringify(portLoggerMessage)
         );
-    }
-
-    private formatCurrentDate(): string {
-        return (new Date()).toTimeString();
     }
 }

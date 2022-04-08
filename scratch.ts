@@ -1,11 +1,13 @@
 import { NS } from '@ns';
-import { MyScriptNames } from '/globals';
-import { grow, weaken } from '/process-launchers';
+import { grow, launchHackCycleSet, weaken } from '/process-launchers';
+import { getTotalThreadsForAttack } from '/utilities';
 
-const target = "computek";
+const target = "deltaone";
 
 export async function main(ns : NS) : Promise<void> {
-    for (let i=0; i<ns.hacknet.numNodes(); i++) {
-        ns.tprint(ns.hacknet.getNodeStats(i));
-    }
+    const threadSummary = getTotalThreadsForAttack(ns, "pserv-1", target, .90);
+    const servers: Array<string> = [];
+    //grow(ns, "home", "phantasy", 1000);
+    //weaken(ns, "home", target, 10000);
+    launchHackCycleSet(ns, "home", "pserv-1", "deltaone", threadSummary.weaken, threadSummary.growth, threadSummary.hack);
 }

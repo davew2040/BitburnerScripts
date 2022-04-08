@@ -2,14 +2,14 @@ import { NS } from '@ns'
 import { notStrictEqual } from 'assert';
 import { stubTrue } from 'lodash';
 import { Costs, MyScriptNames, ServerNames } from '/globals';
-import { PortLogger, PortLoggerTypes } from '/port-logger';
+import { PortLogger, PortLoggerType } from '/port-logger';
 import { grow, hack, weaken } from '/process-launchers';
 import { serverStore } from '/server-store';
 import { getServerMemoryAvailable } from '/utilities';
 
 const cycleBuffer = 1000;
 const growWeakenBuffer = 1.1;
-const logger = new PortLogger(PortLoggerTypes.LogDefault);
+const logger = new PortLogger(PortLoggerType.LogDefault);
 
 interface Input {
     target: string,
