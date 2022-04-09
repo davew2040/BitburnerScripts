@@ -2,21 +2,22 @@ import { NS } from '@ns'
 
 import { serverStore } from './server-store';
 import { MyScriptNames, ServerNames } from './globals';
+import { Server } from 'http';
 
-const copyFiles = [
-	MyScriptNames.FactionGain,
-	MyScriptNames.Grow,
-	MyScriptNames.Weaken,
-	MyScriptNames.Hack,
-    MyScriptNames.PortLogger,
-	MyScriptNames.Share,
-	MyScriptNames.HackByPercentageSingle,
-	MyScriptNames.HackByPercentageSet,
-	MyScriptNames.ProcessLaunchers,
-	MyScriptNames.UniqueGenerator,
-    "globals.js",
-    "utilities.js"
-]
+// const copyFiles = [
+// 	MyScriptNames.FactionGain,
+// 	MyScriptNames.Grow,
+// 	MyScriptNames.Weaken,
+// 	MyScriptNames.Hack,
+//     MyScriptNames.PortLogger,
+// 	MyScriptNames.Share,
+// 	MyScriptNames.HackByPercentageSingle,
+// 	MyScriptNames.HackByPercentageSet,
+// 	MyScriptNames.ProcessLaunchers,
+// 	MyScriptNames.UniqueGenerator,
+//     "globals.js",
+//     "utilities.js"
+// ]
 
 /** @param {NS} ns **/
 export async function main(ns: NS): Promise<void> {
@@ -41,7 +42,7 @@ async function prepareHost(ns: NS, hostName: string) {
 	//ns.killall(hostName);
 	//deleteFiles(ns, hostName);
 
-    ns.tprint(`Copying files ${copyFiles.join(", ")}`);
+	const copyFiles = ns.ls(ServerNames.Home).filter(f => f.endsWith(".js"));
 
 	for (const copyFile of copyFiles) {	
 		await ns.scp(copyFile, hostName);

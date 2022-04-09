@@ -19,7 +19,11 @@ export async function main(ns : NS) : Promise<void> {
 
     for (const server of servers) {
         if (scriptName) {
-            ns.kill(scriptName, server);
+            for (const process of ns.ps(server)) {
+                if (protectedScripts.indexOf(process.filename) === -1) {
+                    ns.kill(process.pid, server);
+                }
+            }
         }
         else {
             if (server === ServerNames.Home) {

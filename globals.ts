@@ -16,13 +16,16 @@ class ScriptNames {
     public KillScripts = "kill-scripts.js";
     public ProcessLaunchers = "process-launchers.js";
     public UniqueGenerator = "unique-generator.js";
+    public SetupHosts = "setup-hosts.js";
 
     public HackByPercentageSingle = "hack-percentage-single.js";
     public HackByPercentageSet = "hack-percentage-set.js";
+    public Prepare = "prepare.js";
 }
 
 export class Ports {
     public static GenericLogger = 1;
+    public static HackMessageQueue = 2;
 }
 
 export class LogFiles {

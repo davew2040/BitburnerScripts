@@ -2,7 +2,6 @@ import { Costs, MyScriptNames, ServerNames } from "/globals";
 
 const homeScriptMemory = 0.8;
 const otherServerScriptMemory = 0.9;
-const growWeakenBuffer = 1.1 // Add a small buffer to account for math not always adding up
 
 class DepthPair {
     value: string;
@@ -13,18 +12,6 @@ class DepthPair {
         this.value = value;
         this.parent = parent;
         this.depth = depth;
-    }
-}
-
-export class HackThreadSummary {
-    constructor(
-        public hack: number,
-        public growth: number,
-        public weaken: number) {
-    }
-
-    public get total(): number {
-        return this.hack + this.growth + this.weaken;
     }
 }
 
@@ -145,6 +132,15 @@ export function getServerMemoryAvailable(ns: NS, sourceName: string) : number {
     }
 }
 
+export function getMaxMemoryAvailable(ns: NS, sourceName: string) : number {
+    if (sourceName === ServerNames.Home) {
+        return ns.getServerMaxRam(sourceName)*homeScriptMemory;
+    }
+    else {
+        return ns.getServerMaxRam(sourceName)*otherServerScriptMemory;
+    }
+}
+
 export function orderBy<T>(values: Array<T>, mapper: (value:T) => number): Array<T> {
     return [...values].sort((a, b) => mapper(a) - mapper(b));
 }
@@ -159,21 +155,4 @@ export function padLeft(s: string, size: number, padder: string) : string {
     }
 
     return s;
-}
-
-export function getTotalThreadsForAttack(ns: NS, source: string, target: string, hackPercent: number): HackThreadSummary {
-    if (hackPercent > .995 || hackPercent < 0.005) {
-        throw "hackPercent must be between 0 and 1";
-    }
-
-    const singleThreadHack = ns.hackAnalyze(target);
-    const requiredHackThreads = Math.floor(hackPercent / singleThreadHack);
-    const requiredGrowthPercent = 1/(1-hackPercent);
-    const requiredGrowthThreads = growWeakenBuffer * Math.ceil(ns.growthAnalyze(target, requiredGrowthPercent, ns.getServer(source).cpuCores));
-    const securityDeficit = (requiredGrowthThreads * Costs.growSecurityCostPerThread)
-        + (requiredHackThreads * Costs.hackSecurityCostPerThread)
-        + (ns.getServerSecurityLevel(target) - ns.getServerMinSecurityLevel(target));
-    const requiredWeakenThreads = Math.ceil(growWeakenBuffer * (securityDeficit / Costs.weakenSecurityReductionPerThread));
-
-    return new HackThreadSummary(requiredHackThreads, requiredGrowthThreads, requiredWeakenThreads);
 }

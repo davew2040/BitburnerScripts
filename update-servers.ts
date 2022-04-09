@@ -1,5 +1,5 @@
 import { NS } from '@ns'
-import { ServerNames } from '/globals';
+import { MyScriptNames, ServerNames } from '/globals';
 import { getPrivateServerName } from '/server-store';
 import { formatNumber } from '/utilities';
 
@@ -30,6 +30,8 @@ export async function main(ns : NS) : Promise<void> {
         for (let i=1; i<=ns.getPurchasedServerLimit(); i++) {
             ns.purchaseServer(getPrivateServerName(i), ramTarget);
         }
+
+        ns.exec(MyScriptNames.SetupHosts, ServerNames.Home, 1);
     }
     catch (e) {
         ns.tprint(`Error while purchasing servers: ${e}`);
