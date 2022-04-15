@@ -32,11 +32,11 @@ export function launchHackCycleSingle(ns: NS, source: string,
     ns.exec(MyScriptNames.HackByPercentageSingle, source, 1, source, target, weakenThreads, growThreads, hackThreads, memory, isLastInSeries, getUid());
 }
 
-export function launchHackCycleSet(ns: NS, processHost: string, subprocessHost: string, 
-        target: string, threadsSummary: HackThreadSummary): void {
-    ns.exec(MyScriptNames.HackByPercentageSet, processHost, 1, subprocessHost, target, 
+export function launchHackCycleSet(ns: NS, source: string, 
+        target: string, threadsSummary: HackThreadSummary, memoryUsage: number): void {
+    ns.exec(MyScriptNames.HackByPercentageSet, source, 1, source, target, 
         threadsSummary.weaken, threadsSummary.growth, threadsSummary.hack, 
-        threadsSummary.repetitions, threadsSummary.totalMemory(ns), getUid());
+        threadsSummary.repetitions, memoryUsage, getUid());
 }
 
 export function launchPrepare(ns: NS, source: string, target: string, weakenThreads: number, growThreads: number, memory: number): void {

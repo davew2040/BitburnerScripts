@@ -10,6 +10,7 @@ export const typeFileMap = new Map<PortLoggerType, string>(
         [ PortLoggerType.LogHack, LogFiles.LogsHack ],
         [ PortLoggerType.LogWeaken, LogFiles.LogsWeaken ],
         [ PortLoggerType.LogTemp, LogFiles.LogsTemp ],
+        [ PortLoggerType.LogError, LogFiles.LogsError ],
     ]
 );
         

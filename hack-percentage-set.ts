@@ -4,6 +4,7 @@ import { PortLogger, PortLoggerType } from '/port-logger';
 import { grow, hack, launchHackCycleSingle, weaken } from '/process-launchers';
 
 const logger = new PortLogger(PortLoggerType.LogDefault);
+const completionBuffer = 1000;
 
 interface Input {
     target: string,
@@ -19,8 +20,10 @@ export async function main(ns : NS) : Promise<void> {
     const input = parseArgs(ns);
 
     await logger.log(ns, `Hacking target ${input.target} with ${input.growThreads} grows, `
-    + `${input.weakenThreads} weakens and ${input.hackThreads} hacks, `
-    + ` repetitions = ${input.repetitions} ,memory ${input.memory}GB used`);
+        + `${input.weakenThreads} weakens and ${input.hackThreads} hacks, `
+        + ` repetitions = ${input.repetitions} ,memory ${input.memory}GB used`);
+
+    const weakenTime = ns.getWeakenTime(input.target);
 
     const repsMax = Math.max(input.repetitions, 1);
     try {
@@ -30,6 +33,9 @@ export async function main(ns : NS) : Promise<void> {
                 input.memory, (i === repsMax));
             await ns.sleep(starterOffsetTimeMilliseconds);
         }
+
+        // wait out until the end
+        await ns.sleep(weakenTime + completionBuffer);
     }
     catch (e) {
         await logger.log(ns, `Error occurred while hacking percentage: ${e}`);

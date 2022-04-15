@@ -43,8 +43,12 @@ async function doPrepare(ns:NS, input: Input) {
     await logger.log(ns, `Preparing target ${input.target} with ${input.growThreads} grows`
         + ` and ${input.weakenThreads} weakens, memory ${input.memory}GB used`);
 
-    weaken(ns, input.source, input.target, input.weakenThreads);
-    grow(ns, input.source, input.target, input.growThreads);
+    if (input.weakenThreads > 0) {
+        weaken(ns, input.source, input.target, input.weakenThreads);
+    }
+    if (input.growThreads > 0) { 
+        grow(ns, input.source, input.target, input.growThreads);
+    }
 
     await ns.sleep(ns.getWeakenTime(input.target) + endBufferMilliseconds);
 

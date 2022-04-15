@@ -1,9 +1,18 @@
 
 export class ServerNames {
     public static Home = "home";
+    public static Noodles = "n00dles";
+    public static FoodNStuff = "foodnstuff";
+    public static JoesGuns = "joesguns";
+    public static HarakiriSushi = "harakiri-sushi";
+    public static IronGym = "harakiri-sushi";
+    public static MaxHardware = "max-hardware"; 
+    public static SigmaCosmetics = "sigma-cosmetics";
+    public static HongFangTea = "hong-fang-tea";
 }
 
 class ScriptNames {
+    public AddOverview = "add-overview.js";
     public Grow = "grow.js";
     public Weaken = "weaken.js";
     public Hack = "hack.js";
@@ -17,6 +26,8 @@ class ScriptNames {
     public ProcessLaunchers = "process-launchers.js";
     public UniqueGenerator = "unique-generator.js";
     public SetupHosts = "setup-hosts.js";
+    public SmallHack = "small-hack.js";
+    public SpinHackLevel = "spin-hack-level.js";
 
     public HackByPercentageSingle = "hack-percentage-single.js";
     public HackByPercentageSet = "hack-percentage-set.js";
@@ -34,6 +45,7 @@ export class LogFiles {
     public static LogsHack = "log.hack.txt";
     public static LogsWeaken = "log.weaken.txt";
     public static LogsTemp = "log.temp.txt";
+    public static LogsError = "log.error.txt";
 }
 
 export class Costs {

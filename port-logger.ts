@@ -6,7 +6,8 @@ export enum PortLoggerType {
     LogGrow,
     LogWeaken,
     LogHack,
-    LogTemp
+    LogTemp,
+    LogError,
 }
 
 export class PortLoggerMessage {

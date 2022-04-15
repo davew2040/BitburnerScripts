@@ -4,12 +4,19 @@ import { exploreServers } from '/utilities';
 
 export const privateServerPrefix = 'pserv';
 
+const sourcesExcludeList = ["foodnstuff", "pserv-1"];
+
 export class ServerStore {
 	private _stolenServers: Array<string> = [];
 	private _targetServers: Array<string> = [];
 
-	getSourceServers(ns: NS): Array<string> {
+	getControlledSources(ns: NS): Array<string> {
 		return [ServerNames.Home, ...ns.getPurchasedServers(), ...this.getStolenServers(ns)];
+	}
+
+	getSourceServers(ns: NS): Array<string> {
+		return [ServerNames.Home, ...ns.getPurchasedServers(), ...this.getStolenServers(ns)]
+			.filter(s => sourcesExcludeList.indexOf(s) === -1);
 	}
 
 	getStolenServers(ns: NS): Array<string> {
@@ -30,7 +37,7 @@ export function getPrivateServerName(index: number): string {
 function findLargePotentialTargetSet(ns: NS) {
 	const targets: Array<string> = [];
 
-	exploreServers(ns, 10, serverName => {
+	exploreServers(ns, 20, serverName => {
 		if (ns.hasRootAccess(serverName)) {
 			targets.push(serverName);
 		}

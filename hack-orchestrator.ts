@@ -1,12 +1,27 @@
 import { NS, ProcessInfo } from '@ns'
-import { Costs, MyScriptNames, ServerNames } from '/globals';
+import { MyScriptNames, ServerNames } from '/globals';
 import { HackMessageQueue } from '/hack-message-queue';
-import { getHackRepetitions, getPrepareSummary, getTotalThreadsForAttack, HackThreadSummary } from '/hack-percentage-lib';
+import { getIdealHackRepetitions, getPrepareSummary, getTotalThreadsForAttack, HackThreadSummary } from '/hack-percentage-lib';
+import { PortLogger, PortLoggerType } from '/port-logger';
 import { launchHackCycleSet, launchPrepare } from '/process-launchers';
 import { serverStore } from '/server-store';
-import { getMaxMemoryAvailable, getServerMemoryAvailable, orderBy, orderByDescending } from '/utilities';
+import { getMaxMemoryAvailable, orderByDescending } from '/utilities';
 
 const watcherCycleTime = 1000;
+const defaultLogger = new PortLogger(PortLoggerType.LogDefault);
+const incrementsCache = new Map<string, Array<number>>();
+
+const targetBlacklist: Array<string> = [
+    "foodnstuff",
+    "fulcrumassets"
+]
+
+const targetWhitelist: Array<string> = [
+//    ServerNames.Noodles,
+//    ServerNames.HarakiriSushi,
+//    ServerNames.JoesGuns,
+//    ServerNames.HongFangTea
+]
 
 interface TargetedAttackingStatus {
     target: string;
@@ -23,11 +38,15 @@ enum AttackingStatus {
 interface AttackConfiguration {
     maxMemory: number;
     maxPercentage: number;
+    maxConcurrent: number;
+    maxServers: number;
 }
 
 const config: AttackConfiguration = {
     maxMemory: 15000,
-    maxPercentage: 0.90
+    maxPercentage: 0.9,
+    maxConcurrent: 10,
+    maxServers: 10
 }
 
 class ServerState {
@@ -96,7 +115,7 @@ async function start(ns: NS) {
     queue.clear(ns);
     
     const serverState = buildServerState(ns, config.maxMemory);
-    startMissingProcesses(ns, serverState, config.maxMemory);
+    await startMissingProcesses(ns, serverState);
     await startWatcherLoop(ns, serverState);
 }
 
@@ -111,7 +130,9 @@ async function startWatcherLoop(ns: NS, serverState: ServerState): Promise<void>
                 serverState.addFreeMemory(next.source, status.memoryUsage);
                 serverState.clearTarget(next.target);
 
-                startAttack(ns, next.target, serverState, config);
+                if (getCandidateTargets(ns).indexOf(next.target) !== -1) {   
+                    await startAttack(ns, next.target, serverState, config);
+                }
             }
         }
         await ns.sleep(watcherCycleTime);
@@ -137,37 +158,45 @@ function buildServerState(ns: NS, maxMemory: number): ServerState {
     return state;
 }
 
-function startMissingProcesses(ns: NS, serverState: ServerState, maxMemory: number): void {
+async function startMissingProcesses(ns: NS, serverState: ServerState): Promise<void> {
     const targets = orderByDescending(getCandidateTargets(ns), s => ns.getServerMaxMoney(s));
     
     for (const target of targets) {
         if (!serverState.hasTarget(target)) {
-            startAttack(ns, target, serverState, config);
+            await startAttack(ns, target, serverState, config);
         }
     }
 }
 
-function startAttack(ns: NS, target: string, serverState: ServerState, config: AttackConfiguration): void {
+async function startAttack(ns: NS, target: string, serverState: ServerState, config: AttackConfiguration): Promise<void> {
     if (serverNeedsPrepare(ns, target)) {
         startPrepare(ns, target, config.maxMemory, serverState);
     }
     else {
-        startHack(ns, target, serverState, config);
+        await startHack(ns, target, serverState, config);
     }
 }
 
-function startHack(ns: NS, target: string, serverState: ServerState, config: AttackConfiguration): boolean {
+async function startHack(ns: NS, target: string, serverState: ServerState, config: AttackConfiguration): Promise<boolean> {
     const source = getServerWithMemory(ns, config.maxMemory, serverState);
     if (!source) {
         return false;
     }
-    const repetitions = getHackRepetitions(ns, target);
-    const optimal = getOptimalHackPercentage(ns, source, target, config.maxPercentage, config.maxMemory, repetitions);
+
+    const repetitions = getIdealHackRepetitions(ns, target, config.maxConcurrent);
+
+    const optimal = getOptimalHackPercentageBinarySearch(ns, source, target, config.maxPercentage, config.maxMemory, repetitions);
     if (!optimal) {
         return false;
     }
+
+    await defaultLogger.log(ns, `Starting hack cycle on target ${target} for ${optimal.percentage*100}% of funds`);
     
-    launchHackCycleSet(ns, ServerNames.Home, source, target, optimal);
+    const hackMemory = ns.getScriptRam(MyScriptNames.HackByPercentageSet)
+        + ns.getScriptRam(MyScriptNames.HackByPercentageSingle) * repetitions
+        + optimal.totalMemory(ns);
+
+    launchHackCycleSet(ns, source, target, optimal, hackMemory);
 
     serverState.subtractMemory(ns, source, optimal.totalMemory(ns));
     serverState.setTargetStatus(ns, 
@@ -182,21 +211,21 @@ function startHack(ns: NS, target: string, serverState: ServerState, config: Att
 }
 
 function startPrepare(ns: NS, target: string, maxMemory: number, serverState: ServerState): boolean {
-    const source = 
-    getServerWithMemory(ns, maxMemory, serverState);
+    const source = getServerWithMemory(ns, maxMemory, serverState);
     if (!source) {
         return false;
     }
     const prepareSummary = getPrepareSummary(ns, source, target, maxMemory);
+    const prepareMemory = ns.getScriptRam(MyScriptNames.Prepare) + prepareSummary.totalMemory(ns);
 
-    launchPrepare(ns, source, target, prepareSummary.weaken, prepareSummary.growth, prepareSummary.totalMemory(ns));
+    launchPrepare(ns, source, target, prepareSummary.weaken, prepareSummary.growth, prepareMemory);
 
-    serverState.subtractMemory(ns, source, prepareSummary.totalMemory(ns));
+    serverState.subtractMemory(ns, source, prepareMemory);
     serverState.setTargetStatus(ns, {
         target: target,
         source: source,
         status: AttackingStatus.Prepare,
-        memoryUsage: prepareSummary.totalMemory(ns)
+        memoryUsage: prepareMemory
     });
     
     return true;
@@ -223,9 +252,16 @@ function getCandidateTargets(ns:NS): Array<string> {
 }
 
 function isCandidateTarget(ns:NS, targetHost: string): boolean {
-    return ns.getServerMoneyAvailable(targetHost) > 0
+    let isCandidate = ns.getServerMoneyAvailable(targetHost) > 0
         && ns.getServerMaxMoney(targetHost) > 0
+        && targetBlacklist.indexOf(targetHost) === -1
         && ns.getServerRequiredHackingLevel(targetHost) <= ns.getHackingLevel();
+    
+    if (targetWhitelist.length > 0) {
+        isCandidate = isCandidate && targetWhitelist.indexOf(targetHost) !== -1;
+    }
+
+    return isCandidate;
 }
 
 function analyzeProcess(process: ProcessInfo, source: string): (TargetedAttackingStatus | null) {
@@ -250,7 +286,7 @@ function analyzeProcess(process: ProcessInfo, source: string): (TargetedAttackin
     return null;
 }
 
-function getOptimalHackPercentage(ns: NS, source: string, target: string, maxPercent: number, memory: number, repetitions: number)
+function getOptimalHackPercentageIterative(ns: NS, source: string, target: string, maxPercent: number, memory: number, repetitions: number)
         : (HackThreadSummary | null) {
     if (maxPercent > 0.99) {
         throw `maxPercent must be <= 0.99`;
@@ -268,6 +304,85 @@ function getOptimalHackPercentage(ns: NS, source: string, target: string, maxPer
 
     return null;
 }
+
+function getOptimalHackPercentageBinarySearch(ns: NS, source: string, target: string, maxPercent: number, memory: number, repetitions: number)
+        : (HackThreadSummary | null) {
+    if (maxPercent > 0.99) {
+        throw `maxPercent must be <= 0.99`;
+    }
+
+    const incrementArray = getIncrementArray(0.01, 0.99, 0.01);
+
+    const first = attackFitsInMemory(ns, memory, source, target, incrementArray[0], repetitions);
+    if (first === null) {
+        return null;
+    }
+
+    const last = attackFitsInMemory(ns, memory, source, target, incrementArray[incrementArray.length-1], repetitions);
+    if (last !== null) {
+        return last;
+    }
+
+    let left = 0, right = incrementArray.length-1;
+
+    while (left <= right) {
+        const mid = Math.floor(left + (right-left)/2);
+        
+        const midValue = attackFitsInMemory(ns, memory, source, target, incrementArray[mid], repetitions);
+        const midPlusOneValue = attackFitsInMemory(ns, memory, source, target, incrementArray[mid+1], repetitions);
+
+        if (midValue !== null && midPlusOneValue === null) {
+            return midValue;
+        }
+        else if (midValue === null) {
+            right = mid-1;
+        }
+        else {
+            left = mid+1;
+        }
+    }
+
+    return null;
+}
+
+function attackFitsInMemory(
+        ns: NS, 
+        memory: number, 
+        source: string, 
+        target: string, 
+        percentage: number, 
+        repetitions: number
+    ): (HackThreadSummary | null) {
+    const threadsBreakdown = getTotalThreadsForAttack(ns, source, target, percentage);
+    const attackMemory = threadsBreakdown.totalMemory(ns) * repetitions;
+
+    if (attackMemory < memory) {
+        threadsBreakdown.repetitions = repetitions;
+        return threadsBreakdown;
+    }
+    else {
+        return null;
+    }
+}
+
+function getIncrementArray(min: number, max: number, increment: number): Array<number> {
+    const increments: Array<number> = [];
+
+    const key = `${min}:${max}:${increment}`;
+
+    if (incrementsCache.has(key)) {
+        return <Array<number>>incrementsCache.get(key);
+    }
+
+    for (let currentIncrement = min; currentIncrement <= max; currentIncrement += increment) {
+        increments.push(currentIncrement);
+    }
+
+    incrementsCache.set(key, increments);
+
+    return increments;
+}
+
 function operationMultiplier(ns: NS, sourceName: string, scriptName: string): number {
     if (sourceName === ServerNames.Home 
         && (scriptName === MyScriptNames.Grow || MyScriptNames.Weaken)) {

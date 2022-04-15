@@ -1,9 +1,9 @@
 import { NS } from '@ns'
 import { Costs, MyScriptNames } from '/globals';
-import { getServerMemoryAvailable } from '/utilities';
 
 const growWeakenBuffer = 1.1 // Add a small buffer to account for math not always adding up
-export const starterOffsetTimeMilliseconds = 10000;
+const securityFocusProportion = 1.2;
+export const starterOffsetTimeMilliseconds = 7500;
 export const completionBufferTimeMilliseconds = 2500;
 
 export class HackThreadSummary {
@@ -11,6 +11,7 @@ export class HackThreadSummary {
         public hack: number,
         public growth: number,
         public weaken: number,
+        public percentage: number,
         public repetitions: number) {
     }
 
@@ -43,7 +44,7 @@ export class PrepareThreadSummary {
 }
 
 export function getTotalThreadsForAttack(ns: NS, source: string, target: string, hackPercent: number): HackThreadSummary {
-    if (hackPercent > .995 || hackPercent < 0.005) {
+    if (hackPercent > .999 || hackPercent < 0.001) {
         throw "hackPercent must be between 0 and 1";
     }
 
@@ -60,10 +61,21 @@ export function getTotalThreadsForAttack(ns: NS, source: string, target: string,
         Math.ceil(requiredHackThreads), 
         Math.ceil(requiredGrowthThreads), 
         Math.ceil(requiredWeakenThreads), 
+        hackPercent,
         1);
 }
 
-export function getPrepareSummary(ns:NS, source: string, target: string, maxMemory: number) {
+export function getPrepareSummary(ns:NS, source: string, target: string, maxMemory: number): PrepareThreadSummary { 
+    const summary = choosePrepareSummary(ns, source, target);
+    const scaledSummary = scalePrepareToMaxMemory(ns, summary, maxMemory);
+
+    return new PrepareThreadSummary(
+        Math.ceil(Math.max(scaledSummary.growth, 1)),
+        Math.ceil(Math.max(scaledSummary.weaken, 1))
+    );
+}
+
+function getMixedGrowWeakenSummary(ns:NS, source: string, target: string): PrepareThreadSummary {
     const prepareGrowThreads = Math.ceil(
         growWeakenBuffer * ns.growthAnalyze(
             target,  
@@ -75,25 +87,44 @@ export function getPrepareSummary(ns:NS, source: string, target: string, maxMemo
         + (prepareGrowThreads * Costs.growSecurityCostPerThread);
     const prepareWeakenThreads = securityDeficit / Costs.weakenSecurityReductionPerThread;
 
-    let summary = new PrepareThreadSummary(
+    const summary = new PrepareThreadSummary(
         growWeakenBuffer*prepareGrowThreads, 
         growWeakenBuffer*prepareWeakenThreads
     );
 
-    summary = scalePrepareToMaxMemory(ns, summary, maxMemory);
-
-    return new PrepareThreadSummary(
-        Math.ceil(Math.max(summary.growth, 1)),
-        Math.ceil(Math.max(summary.weaken, 1))
-    );
+    return summary;
 }
 
-export function getHackRepetitions(ns: NS, target: string): number {
+function getWeakenOnlySummary(ns:NS, target: string): PrepareThreadSummary {
+    const securityDeficit = (ns.getServerSecurityLevel(target) - ns.getServerMinSecurityLevel(target));
+    const prepareWeakenThreads = securityDeficit / Costs.weakenSecurityReductionPerThread;
+
+    const summary = new PrepareThreadSummary(
+        0, 
+        growWeakenBuffer*prepareWeakenThreads
+    );
+
+    return summary;
+}
+
+function choosePrepareSummary(ns:NS, source: string, target: string): PrepareThreadSummary {
+    const securityProportion = (ns.getServerSecurityLevel(target)/ns.getServerMinSecurityLevel(target));
+
+    if (securityProportion > securityFocusProportion) {
+        return getWeakenOnlySummary(ns, target);
+    }
+    else {
+        return getMixedGrowWeakenSummary(ns, source, target);
+    }
+}
+
+export function getIdealHackRepetitions(ns: NS, target: string, maxConcurrent: number): number {
     const hackTime = ns.getHackTime(target);
 
-    const increments = hackTime / (starterOffsetTimeMilliseconds + 3000)-1;
+    const increments = (hackTime / (starterOffsetTimeMilliseconds + 3000))-1;
 
-    return Math.max(Math.floor(increments), 1);
+    const capped = Math.max(Math.floor(increments), 1);
+    return Math.min(capped, maxConcurrent);
 }
 
 function scalePrepareToMaxMemory(ns: NS, summary: PrepareThreadSummary, maxMemory: number)
@@ -101,11 +132,7 @@ function scalePrepareToMaxMemory(ns: NS, summary: PrepareThreadSummary, maxMemor
     const totalScriptMemory = summary.growth * ns.getScriptRam(MyScriptNames.Grow) 
         + summary.weaken * ns.getScriptRam(MyScriptNames.Weaken);
 
-    if (totalScriptMemory > maxMemory) {
-        const ratio = maxMemory / totalScriptMemory;
-        return new PrepareThreadSummary(ratio * summary.growth, ratio * summary.weaken);
-    }
-    else {
-        return summary;
-    }
+    // we're okay with scaling up unnecessarily
+    const ratio = maxMemory / totalScriptMemory;
+    return new PrepareThreadSummary(ratio * summary.growth, ratio * summary.weaken);
 }

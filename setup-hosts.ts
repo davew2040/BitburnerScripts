@@ -21,7 +21,7 @@ import { Server } from 'http';
 
 /** @param {NS} ns **/
 export async function main(ns: NS): Promise<void> {
-	const servers = serverStore.getSourceServers(ns).filter(s => s !== ServerNames.Home);
+	const servers = serverStore.getControlledSources(ns).filter(s => s !== ServerNames.Home);
 
     ns.tprint(`SERVERS = `, servers);
 

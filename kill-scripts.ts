@@ -1,9 +1,9 @@
 import { NS } from '@ns'
 import { MyScriptNames, ServerNames } from '/globals'
 import { serverStore } from '/server-store'
-import { exploreServers } from '/utilities'
 
 const protectedScripts = [
+    MyScriptNames.AddOverview,
     MyScriptNames.KillScripts,
     MyScriptNames.LogCollect,
     MyScriptNames.LogPrune
@@ -20,8 +20,9 @@ export async function main(ns : NS) : Promise<void> {
     for (const server of servers) {
         if (scriptName) {
             for (const process of ns.ps(server)) {
-                if (protectedScripts.indexOf(process.filename) === -1) {
-                    ns.kill(process.pid, server);
+                if (process.filename === scriptName && protectedScripts.indexOf(process.filename) === -1) {            
+                    ns.tprint(`killing ${process.pid}...`);
+                    ns.kill(process.pid);
                 }
             }
         }
