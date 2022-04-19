@@ -156,3 +156,7 @@ export function padLeft(s: string, size: number, padder: string) : string {
 
     return s;
 }
+
+export function intBetween(first: number, last: number): number {
+    return Math.floor(first + Math.random() * (1+last-first));
+}
