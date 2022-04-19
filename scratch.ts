@@ -1,6 +1,6 @@
 import { NS } from '@ns';
 import { getPrivateServerName, serverStore } from '/server-store';
-import { orderBy } from '/utilities';
+import { orderBy, orderByDescending } from '/utilities';
 
 class GangTasks {
     public static Unassigned = 'Unassigned';
@@ -20,9 +20,62 @@ class GangTasks {
     public static TerritoryWarfare = 'Territory Warfare';
 }
 
-const company = "Bachman & Associates";
+enum Crimes {
+    Shoplift,
+    RobStore,
+    MugSomeone,
+    Larceny,
+    DealDrugs
+}
+
+class CrimeLabels {
+    public static Shoplift = 'Shoplift';
+    public static RobStore = 'Rob Store';
+    public static MugSomeone = 'Mug Someone';
+    public static Larceny = 'Larceny';
+    public static DealDrugs = 'Deal Drugs';
+} 
+
+const crimeLabelMap = new Map<Crimes, string>([
+    [Crimes.Shoplift, CrimeLabels.Shoplift],
+    [Crimes.RobStore, CrimeLabels.RobStore],
+    [Crimes.MugSomeone, CrimeLabels.MugSomeone],
+    [Crimes.Larceny, CrimeLabels.Larceny],
+    [Crimes.DealDrugs, CrimeLabels.DealDrugs]
+]);
+
+const allCrimes = [
+    Crimes.Shoplift
+]
+
+const sleepTimeMilliseconds = 3000;
  
 export async function main(ns : NS) : Promise<void> {
-    ns.applyToCompany("Bachman & Associates", "Software Job");
-    ns.workForCompany(company);
+    while (true) {
+        await commitCrime(ns, CrimeLabels.RobStore);
+    }
+}
+
+function findMostProfitableCrime(ns: NS): Crimes {
+    const crimes = enumCrimes();
+
+    const crimesByRate = orderByDescending(crimes, c => getCrimeRate(ns, c));
+
+    return crimesByRate[0];
+}
+
+function getCrimeRate(ns: NS, crime: Crimes): number {
+    const stats = ns.getCrimeStats(<string>crimeLabelMap.get(crime));
+    const chance = ns.getCrimeChance(<string>crimeLabelMap.get(crime));
+    return chance * (stats.money / (stats.time + sleepTimeMilliseconds));
+}
+
+async function commitCrime(ns: NS, crime: string): Promise<void> {
+    const stats = ns.getCrimeStats(crime);
+    ns.commitCrime(crime);
+    await ns.sleep(stats.time + sleepTimeMilliseconds);
+}
+
+function enumCrimes(): Crimes[] {
+    return Object.keys(Crimes).filter(key => !isNaN(Number(Crimes[<any>key]))).map(c => <unknown>c as Crimes);
 }

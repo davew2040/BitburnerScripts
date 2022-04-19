@@ -1,4 +1,5 @@
 import { NS } from '@ns'
+import { homedir } from 'os';
 import { MyScriptNames, ServerNames } from '/globals';
 import { getPrivateServerName } from '/server-store';
 import { formatNumber, orderBy } from '/utilities';
@@ -6,6 +7,10 @@ import { formatNumber, orderBy } from '/utilities';
 let serverCount = 25;
 
 export async function main(ns: NS) : Promise<void> {
+    printServerStatus(ns);
+
+    ns.tprint(`-----------------------`);
+
     if (ns.args.length < 2) {
         ns.tprint(getUsage());
         return;
@@ -21,7 +26,6 @@ export async function main(ns: NS) : Promise<void> {
     const totalRequiredMoney = ns.getPurchasedServerCost(ramTarget)*serverCount;
 
     if (!ns.args[2] || (<string>ns.args[2]).toLowerCase() !== "update") {
-        printServerStatus(ns);
         ns.tprint(`Cost to buy ${serverCount} servers with ${ramTarget}GB = $${formatNumber(totalRequiredMoney)}`);
         return;
     }
@@ -75,10 +79,10 @@ function getServersToKill(ns: NS, serverCount: number): Array<string> {
 
 function getUsage(): string {
     return `Usage: update-servers <ram_exponent> <number_of_servers> (update)`;
-}
+} 
 
 function printServerStatus(ns: NS): void {
-    for (const server of ns.getPurchasedServers()) {
+    for (const server of [ServerNames.Home, ...ns.getPurchasedServers()]) {
         const serverDetails = ns.getServer(server);
         ns.tprint(`Server ${server} has ${formatNumber(serverDetails.maxRam)} GB of RAM`);
     }

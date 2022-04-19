@@ -27,15 +27,12 @@ export async function main(ns : NS) : Promise<void> {
 
     while (true) {
         if (needGrow(ns, target)) {
-            ns.tprint(`Growing...`);
             await doGrow(ns, source, target);
         }
         else if (needWeaken(ns, target)) {
-            ns.tprint(`Weakening...`);
             await doWeaken(ns, source, target);
         }
         else {
-            ns.tprint(`Hacking...`);
             await doHack(ns, source, target, threadSummary, concurrent);
         }
     }

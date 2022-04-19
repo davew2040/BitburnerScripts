@@ -5,7 +5,7 @@ import { getIdealHackRepetitions, getPrepareSummary, getTotalThreadsForAttack, H
 import { PortLogger, PortLoggerType } from '/port-logger';
 import { launchHackCycleSet, launchPrepare } from '/process-launchers';
 import { serverStore } from '/server-store';
-import { getMaxMemoryAvailable, orderByDescending } from '/utilities';
+import { getMaxMemoryAvailable, orderBy, orderByDescending } from '/utilities';
 
 const watcherCycleTime = 1000;
 const defaultLogger = new PortLogger(PortLoggerType.LogDefault);
@@ -43,7 +43,7 @@ interface AttackConfiguration {
 }
 
 const config: AttackConfiguration = {
-    maxMemory: 15000,
+    maxMemory: 20000,
     maxPercentage: 0.9,
     maxConcurrent: 10,
     maxServers: 10
@@ -159,8 +159,8 @@ function buildServerState(ns: NS, maxMemory: number): ServerState {
 }
 
 async function startMissingProcesses(ns: NS, serverState: ServerState): Promise<void> {
-    const targets = orderByDescending(getCandidateTargets(ns), s => ns.getServerMaxMoney(s));
-    
+    const targets = orderBy(getCandidateTargets(ns), s => ns.getServerMaxMoney(s));
+
     for (const target of targets) {
         if (!serverState.hasTarget(target)) {
             await startAttack(ns, target, serverState, config);

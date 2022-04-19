@@ -3,17 +3,7 @@ import { MyScriptNames, ServerNames } from '/globals'
 import { getPrivateServerName } from '/server-store';
 
 const targets = [
-    "pserv-3",
-    "pserv-4",
-    "pserv-5",
-    "pserv-6",
-    "pserv-7",
-    "pserv-8",
-    "pserv-9",
-    "pserv-10",
-    "pserv-11",
-    "pserv-12",
-
+    "pserv-2"
 ]
 
 export async function main(ns : NS) : Promise<void> {
@@ -23,9 +13,5 @@ export async function main(ns : NS) : Promise<void> {
 }
 
 function getTargets(): Array<string> {
-    const targets = [];
-    for (let i=6; i<=25; i++) {
-        targets.push(getPrivateServerName(i));
-    }
     return targets;
 }

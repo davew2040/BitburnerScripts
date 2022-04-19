@@ -15,7 +15,7 @@ export async function main(ns : NS) : Promise<void> {
         scriptName = <string>(ns.args[0]);
     }
 
-    const servers = serverStore.getSourceServers(ns);
+    const servers = serverStore.getControlledSources(ns);
 
     for (const server of servers) {
         if (scriptName) {

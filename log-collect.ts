@@ -45,5 +45,6 @@ async function readPorts(ns: NS) {
 }
 
 function formatDate(date: Date): string {
-    return `${padLeft(date.getHours().toString(), 2, "0")}:${padLeft(date.getMinutes().toString(), 2, "0")}:${padLeft(date.getMilliseconds().toString(), 3, "0")}`;
+    return `${padLeft(date.getHours().toString(), 2, "0")}:${padLeft(date.getMinutes().toString(), 2, "0")}:`
+        + `${padLeft(date.getSeconds().toString(), 2, "0")}:${padLeft(date.getMilliseconds().toString(), 3, "0")}`;
 }
