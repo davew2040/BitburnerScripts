@@ -52,7 +52,7 @@ export async function main(ns : NS) : Promise<void> {
 
             await ns.sleep(2*checkTime);
         }
-        else{
+        else {
             currentCycle = Cycles.Training;
             setTraining(ns);
             await ns.sleep(checkTime);
