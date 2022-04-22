@@ -1,7 +1,7 @@
 import { NS } from '@ns'
 import { starterOffsetTimeMilliseconds } from '/hack-percentage-lib';
 import { PortLogger, PortLoggerType } from '/port-logger';
-import { grow, hack, launchHackCycleSingle, weaken } from '/process-launchers';
+import { grow, hack, launchHackCyclePart, weaken } from '/process-launchers';
 
 const logger = new PortLogger(PortLoggerType.LogDefault);
 const completionBuffer = 1000;
@@ -16,19 +16,22 @@ interface Input {
     memory: number
 }
 
+export const hackSetArgumentTarget = 1;
+export const hackSetArgumentMemory = 6;
+
 export async function main(ns : NS) : Promise<void> {
     const input = parseArgs(ns);
 
     await logger.log(ns, `Hacking target ${input.target} with ${input.growThreads} grows, `
         + `${input.weakenThreads} weakens and ${input.hackThreads} hacks, `
-        + ` repetitions = ${input.repetitions} ,memory ${input.memory}GB used`);
+        + ` repetitions = ${input.repetitions}, memory ${input.memory}GB used`);
 
     const weakenTime = ns.getWeakenTime(input.target);
 
     const repsMax = Math.max(input.repetitions, 1);
     try {
         for (let i=1; i<=repsMax; i++) {
-            launchHackCycleSingle(ns, input.source, input.target, 
+            launchHackCyclePart(ns, input.source, input.target, 
                 input.weakenThreads, input.growThreads, input.hackThreads, 
                 input.memory, (i === repsMax));
             await ns.sleep(starterOffsetTimeMilliseconds);
@@ -50,12 +53,12 @@ function parseArgs(ns: NS): Input {
     }
     
     const source = <string>ns.args[0];
-    const target = <string>ns.args[1];
+    const target = <string>ns.args[hackSetArgumentTarget];
     const inputWeakenThreads = <number>ns.args[2];
     const inputGrowThreads = <number>ns.args[3];
     const inputHackThreads = <number>ns.args[4]; 
     const repetitions = <number>ns.args[5];
-    const memory = <number>ns.args[6];
+    const memory = <number>ns.args[hackSetArgumentMemory];
 
     const input: Input = {
         target: target,

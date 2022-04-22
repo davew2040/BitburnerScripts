@@ -1,6 +1,6 @@
 import { NS } from '@ns'
 import { Costs, MyScriptNames } from '/globals';
-import { getTotalThreadsForAttack, HackThreadSummary } from '/hack-percentage-lib';
+import { getIdealTotalThreadsForAttack, getCurrentTotalThreadsForAttack, HackThreadSummary } from '/hack-percentage-lib';
 import { grow, hack, weaken } from '/process-launchers';
 
 const sourceMemoryAllocation = 0.8;
@@ -16,7 +16,7 @@ export async function main(ns : NS) : Promise<void> {
     const percentage = <number>ns.args[2];
     const concurrent = <boolean>ns.args[3];
 
-    const threadSummary = getTotalThreadsForAttack(ns, source, target, percentage);
+    const threadSummary = getIdealTotalThreadsForAttack(ns, source, target, percentage);
     const memoryRequired = getMemoryRequired(ns, threadSummary, concurrent);
 
     const memoryAvailable = ns.getServerMaxRam(source) - ns.getServerUsedRam(source);

@@ -19,6 +19,6 @@ export async function main(ns : NS) : Promise<void> {
 function getServers(ns: NS): Array<string> {
     //return ns.getPurchasedServers();
     return [
-        "pserv-3"
+        "pserv-1"
     ];
 }

@@ -1,6 +1,7 @@
 import { GangMemberAscension, NS } from '@ns';
-import { arrayBuffer } from 'stream/consumers';
-import { intBetween, orderBy, orderByDescending } from '/utilities';
+import { notStrictEqual } from 'assert';
+import { ServerNames } from '/globals';
+import { average, basicSumHasher, intBetween as randomIntBetween, orderBy, orderByDescending, shuffle } from '/utilities';
 
 class GangTasks {
     public static Unassigned = 'Unassigned';
@@ -9,7 +10,7 @@ class GangTasks {
     public static StrongarmCivilians = 'Strongarm Civilians';
     public static RunACon = 'Run a Con';
     public static ArmedRobbery = 'Armed Robbery';
-    public static TraffickIllegalArms = 'Traffick Illegal Arm';
+    public static TraffickIllegalArms = 'Traffick Illegal Arms';
     public static ThreatenBlackmail = 'Threaten & Blackmail';
     public static HumanTrafficking = 'Human Trafficking';
     public static Terrorism = 'Terrorism';
@@ -21,6 +22,7 @@ class GangTasks {
 }
 
 class GangEquipment {
+    public static Glock = "Glock 18C";
     public static BaseballBat = "Baseball Bat";
     public static Katana = "Katana";
 }
@@ -30,68 +32,184 @@ enum Cycles {
     Fighting
 }
 
-const checkTime = 60*1000;
+const cycleTimeMilliseconds = 60*1000;
 const usefulStrengthMinimum = 200;
-const maxWantedLevel = 40;
+const maxAcceptableWantedLevel = 40;
 const territoryAllocation = 0.3;
+const minimumAscendFactor = 1.5;
+const minimumAscendFactorAfterRecruit = 1.15;
+const ascendLimiter = 15;
+const usefulPercentage = 0.75;
 
+let lastAscendCycle = -1000;
 let currentCycle = Cycles.Fighting;
+let cycleCount = 0;
 
 export async function main(ns : NS) : Promise<void> {
+    await startFightAndTrainLoop(ns);
+}
+
+
+
+const ascensionCutoffTable = new Map<number, number>([
+    [0, 1.22],
+    [1, 1.50],
+    [2, 1.53],
+    [3, 1.20],
+    [4, 1.20],
+    [5, 1.64],
+    [6, 1.32],
+    [7, 1.37],
+    [8, 1.57],
+    [9, 1.21],
+]);
+
+async function startFightAndTrainLoop(ns: NS): Promise<void> {
     while (true) {
         const info = ns.gang.getGangInformation(); 
 
         doRecruit(ns);
-        doAscend(ns);
+        doAscend(ns, minimumAscendFactor);
 
         if (currentCycle === Cycles.Fighting) {
-            if (info.wantedLevel > maxWantedLevel) {
+            if (info.wantedLevel > maxAcceptableWantedLevel) {
                 setAllVigilante(ns);
             }
             else {
                 setFighting(ns);
             }
 
-            await ns.sleep(2*checkTime);
+            await ns.sleep(2*cycleTimeMilliseconds);
             currentCycle = Cycles.Training;
         }
         else {
             setTraining(ns);
-            await ns.sleep(checkTime);
+            await ns.sleep(cycleTimeMilliseconds);
             currentCycle = Cycles.Fighting;
         }
+
+        cycleCount++;
+    }
+}
+
+async function startTrainingOnlyLoop(ns: NS): Promise<void> {
+    for (const member of ns.gang.getMemberNames()) {
+        ns.gang.setMemberTask(member, GangTasks.TrainCombat);
+    }
+
+    while (true) {
+        for (const member of ns.gang.getMemberNames()) {
+            if (!ns.gang.getAscensionResult(member)) {
+                continue;
+            }
+
+            if ((<GangMemberAscension>ns.gang.getAscensionResult(member)).str > 1.15) {
+                ns.gang.ascendMember(member);
+            }
+        }
+
+        await ns.sleep(cycleTimeMilliseconds);
     }
 }
 
 function setFighting(ns: NS): void {
+    setClash(ns);
+
     const members = ns.gang.getMemberNames();
 
-    let membersByStrength = orderByDescending(members, m => ns.gang.getMemberInformation(m).str);
+    const useful = members.filter(m => isUseful(ns, m));
+    const notUseful = members.filter(m => !isUseful(ns, m));
 
-    const vigilanteIndex = intBetween(0, 2);
-    const vigilante = membersByStrength[vigilanteIndex];
-    ns.gang.setMemberTask(vigilante, GangTasks.VigilanteJustice);
+    allocateUsefulMembers(ns, useful);
 
-    membersByStrength = removeFromArray(membersByStrength, vigilanteIndex)[1];
-    const usefulMembers = membersByStrength.filter(m => isUseful(ns, m));
-    let territoryToAllocate = usefulMembers.length * territoryAllocation;
+    notUseful.forEach(m => ns.gang.setMemberTask(m, GangTasks.TrainCombat));
+}
 
-    for (const member of membersByStrength) {
-        const memberInfo = ns.gang.getMemberInformation(member);
-        
-        if (memberInfo.str > usefulStrengthMinimum) {
-            if (territoryToAllocate > 0) {
-                ns.gang.setMemberTask(member, GangTasks.TerritoryWarfare);
-                territoryToAllocate--;
-            }
-            else {   
-                ns.gang.setMemberTask(member, GangTasks.DealDrugs);
-            }
+function setClash(ns: NS): void {
+    ns.gang.setTerritoryWarfare(shouldClash(ns));
+}
+
+function shouldClash(ns: NS): boolean {
+    const currentGang = ns.gang.getGangInformation().faction;
+    const gangs = Object.keys(ns.gang.getOtherGangInformation())
+        .filter(g => g !== currentGang);
+
+    const averageWinChance = average(gangs, g => ns.gang.getChanceToWinClash(g));
+
+    return averageWinChance > 0.8;
+}
+
+function allocateTerritory(ns: NS, pool: Array<string>): Array<string> {
+    const toAllocate = 0; //(pool.length - 4) * 0.3;
+
+    for (let i=1; i<=toAllocate; i++) {
+        const remove = removeRandomFromArray(pool);
+
+        const target = remove[0];
+        pool = remove[1];
+
+        ns.gang.setMemberTask(target, GangTasks.TerritoryWarfare);
+    }
+   
+    return pool;
+}
+
+
+function allocateUsefulMembers(ns: NS, pool: Array<string>): Array<string> {
+    pool = allocateTerritory(ns, pool);
+
+    shuffle(pool);
+
+    let wantedRate = 0;
+
+    while (pool.length > 0) {
+        const current = pool[0];
+
+        if (wantedRate > 0) {
+            ns.gang.setMemberTask(current, GangTasks.VigilanteJustice);
         }
         else {
-            ns.gang.setMemberTask(member, GangTasks.MugPeople);
+            const task = decideFightTask(ns, current);
+            ns.gang.setMemberTask(current, task);
+
+            const initialWantedGain = ns.gang.getMemberInformation(current).wantedLevelGain;
+
+            if (wantedRate + initialWantedGain > 0) {
+                ns.gang.setMemberTask(current, GangTasks.VigilanteJustice);
+                wantedRate += ns.gang.getMemberInformation(current).wantedLevelGain;
+            }
+            else {
+                wantedRate += initialWantedGain;
+            }
         }
+        pool = removeFromArray(pool, 0)[1];
     }
+
+    return pool;
+}
+
+function decideFightTask(ns: NS, member: string): string { 
+    const territory = (<any>ns.gang.getOtherGangInformation())[getCurrentGang()].territory;
+
+    if (ns.gang.getMemberInformation(member).str > 30000) {
+        return GangTasks.ArmedRobbery;
+    }
+    else if (ns.gang.getMemberInformation(member).str > 16000) {
+        return GangTasks.RunACon;
+    }
+    else if (ns.gang.getMemberInformation(member).str > 12000) {
+        return GangTasks.ArmedRobbery;
+    }
+    else if (ns.gang.getMemberInformation(member).str > 8000) {
+        return GangTasks.StrongarmCivilians;
+    }
+    else {
+        return GangTasks.MugPeople;
+    }
+}
+
+function getCurrentGang(): string {
+    return 'Slum Snakes';
 }
 
 function setAllVigilante(ns: NS): void {
@@ -105,36 +223,67 @@ function setAllVigilante(ns: NS): void {
 function setTraining(ns: NS): void {
     const members = ns.gang.getMemberNames();
 
-    for (const member of members) {
+    const territoryMembers: Array<string> = [];
+
+    // const useful = members.filter(m => isUseful(ns, m));
+    // const first = removeRandomFromArray(useful);
+    // territoryMembers.push(first[0]);
+    // const second = removeRandomFromArray(first[1]);
+    // territoryMembers.push(second[0]);
+
+    // for (const member of territoryMembers) {
+    //     ns.gang.setMemberTask(member, GangTasks.TerritoryWarfare);
+    // }
+
+    for (const member of members.filter(m => territoryMembers.indexOf(m) === -1)) {
         ns.gang.setMemberTask(member, GangTasks.TrainCombat);
     }
 }
 
-function doAscend(ns: NS): void {
-    for (const member of ns.gang.getMemberNames()) {
+function doAscend(ns: NS, cutoff: number): void {
+    const canAscend = ns.gang.getMemberNames().filter(m => ns.gang.getAscensionResult(m));
+    const ordered = orderBy(canAscend, m => (<GangMemberAscension>ns.gang.getAscensionResult(m)).str);
+
+    for (const member of ordered) {
         if (shouldAscend(ns, member)) {
             ns.gang.ascendMember(member);
+            lastAscendCycle = currentCycle;
             equipAfterAscension(ns, member);
+            break;
         }
     }
 }
 
 function isUseful(ns: NS, member: string): boolean {
-    return ns.gang.getMemberInformation(member).str > usefulStrengthMinimum;
+    const averageStrength = average(ns.gang.getMemberNames().map(m => ns.gang.getMemberInformation(m).str), v => v);
+    //const averageRespect = average(ns.gang.getMemberNames().map(m => ns.gang.getMemberInformation(m).earnedRespect), v => v);
+
+    return ns.gang.getMemberInformation(member).str > (usefulPercentage * averageStrength);
 }
 
 function equipAfterAscension(ns: NS, member: string): void {
     const memberInfo = ns.gang.getMemberInformation(member);
-    if (memberInfo.str_mult > 20) {
-        ns.gang.purchaseEquipment(member, GangEquipment.Katana);
+
+    if (memberInfo.str_asc_mult > 50) {
+        purchaseIfAffordable(ns, member, GangEquipment.Glock);
     }
-    else if (memberInfo.str_mult > 10) {
-        ns.gang.purchaseEquipment(member, GangEquipment.BaseballBat);
+    if (memberInfo.str_asc_mult > 30) {
+        purchaseIfAffordable(ns, member, GangEquipment.Katana);
+    }
+    if (memberInfo.str_asc_mult > 10) {
+        purchaseIfAffordable(ns, member, GangEquipment.BaseballBat);
+    }
+}
+
+function purchaseIfAffordable(ns: NS, member: string, equipment: string): void {
+    const equipPercent = ns.gang.getEquipmentCost(equipment) / ns.getServerMoneyAvailable(ServerNames.Home);
+
+    if (equipPercent < 0.001) {
+        ns.gang.purchaseEquipment(member, equipment);
     }
 }
 
 function shouldAscend(ns: NS, member: string): boolean {
-    const current = ns.gang.getMemberInformation(member);
     const nextResult = ns.gang.getAscensionResult(member);
 
     if (!nextResult) {
@@ -142,11 +291,25 @@ function shouldAscend(ns: NS, member: string): boolean {
     }
 
     const next = <GangMemberAscension>nextResult;
-
-    return (next.str / current.str_asc_mult) > 1.5;
-
+    
+    return next.str > getAscensionCutoff(ns, member)
+        && (ns.gang.getMemberInformation(member).earnedRespect / totalRespect(ns) < 0.3)
+        && cycleCount - lastAscendCycle > ascendLimiter;
 }
 
+function getAscensionCutoff(ns: NS, member: string): number {
+    const memberHash = basicSumHasher(member) 
+        + Math.floor(ns.gang.getMemberInformation(member).str_asc_mult);
+    const cutoff = <number>ascensionCutoffTable.get(memberHash % ascensionCutoffTable.size);
+
+    return cutoff;
+}
+
+function totalRespect(ns: NS): number {
+    let sum = 0;
+    ns.gang.getMemberNames().forEach(m => sum += ns.gang.getMemberInformation(m).earnedRespect);
+    return sum;
+}
 
 function doRecruit(ns: NS): void {
     if (ns.gang.canRecruitMember()) {
@@ -160,6 +323,14 @@ function removeFromArray<T>(array: Array<T>, index: number): [T, Array<T>] {
 
     return [target, newArray];
 }
+
+function removeRandomFromArray<T>(array: Array<T>): [T, Array<T>] {
+    const index = randomIntBetween(0, array.length-1);
+    const result = removeFromArray(array, index);
+
+    return [result[0], result[1]];
+}
+
 
 function getName(ns: NS): string {
     let i=1;

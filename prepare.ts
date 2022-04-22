@@ -1,38 +1,36 @@
 import { NS } from '@ns'
 import { Ports } from '/globals';
 import { HackMessageQueue } from '/hack-message-queue';
+import { getGrowThreadsForMemory, getWeakenThreadsForMemory, needsGrow, needsWeaken } from '/hack-percentage-lib';
 import { PortLogger, PortLoggerType } from '/port-logger';
 import { grow, weaken } from '/process-launchers';
 
 interface Input {
     target: string,
     source: string,
-    weakenThreads: number,
-    growThreads: number,
     memory: number
 }
+
+export const prepareArgumentTarget = 1;
+export const prepareArgumentMemory = 2;
 
 const endBufferMilliseconds = 1000;
 const logger = new PortLogger(PortLoggerType.LogDefault);
 
 export async function main(ns : NS) : Promise<void> {
-    for (let i=0; i<=4; i++) {
-        if (!ns.args[0]) { 
+    for (let i=0; i<=2; i++) {
+        if (!ns.args[i]) { 
             throw `Missing arguments`;
         }
     }
 
     const source = <string>ns.args[0];
-    const target = <string>ns.args[1];
-    const inputWeakenThreads = <number>ns.args[2];
-    const inputGrowThreads = <number>ns.args[3];
-    const memory = <number>ns.args[4];
+    const target = <string>ns.args[prepareArgumentTarget];
+    const memory = <number>ns.args[prepareArgumentMemory];
 
     const input: Input = {
         target: target,
         source: source,
-        weakenThreads: inputWeakenThreads,
-        growThreads: inputGrowThreads,
         memory: memory
     }
 
@@ -40,17 +38,23 @@ export async function main(ns : NS) : Promise<void> {
 }
 
 async function doPrepare(ns:NS, input: Input) {
-    await logger.log(ns, `Preparing target ${input.target} with ${input.growThreads} grows`
-        + ` and ${input.weakenThreads} weakens, memory ${input.memory}GB used`);
+    await logger.log(ns, `Preparing target ${input.target} with max memory ${input.memory}GB`);
 
-    if (input.weakenThreads > 0) {
-        weaken(ns, input.source, input.target, input.weakenThreads);
+    while (true) {
+        if (needsWeaken(ns, input.target)) {
+            const threads = Math.max(1, getWeakenThreadsForMemory(ns, input.source, input.target, input.memory));
+            weaken(ns, input.source, input.target, threads);
+            await ns.sleep(ns.getWeakenTime(input.target) + endBufferMilliseconds);
+        }
+        else if (needsGrow(ns, input.target)) {
+            const threads = Math.max(1, getGrowThreadsForMemory(ns, input.source, input.target, input.memory));
+            grow(ns, input.source, input.target, threads);
+            await ns.sleep(ns.getGrowTime(input.target) + endBufferMilliseconds);
+        }
+        else {
+            break;
+        }
     }
-    if (input.growThreads > 0) { 
-        grow(ns, input.source, input.target, input.growThreads);
-    }
-
-    await ns.sleep(ns.getWeakenTime(input.target) + endBufferMilliseconds);
 
     const queue = new HackMessageQueue();
     await queue.enqueue(

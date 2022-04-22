@@ -1,7 +1,7 @@
 import { NS } from '@ns'
 import { Server } from 'http';
 import { Costs, MyScriptNames, ServerNames } from '/globals';
-import { launchHackCycle } from '/process-launchers';
+import { launchHackCycleSingle } from '/process-launchers';
 import { serverStore } from '/server-store';
 import { getServerMemoryAvailable } from '/utilities';
 
@@ -94,8 +94,8 @@ function allocateTargetsToServers(ns: NS, sources: Array<string>, targets: Array
 
         ns.tprint(`Launching hacks on ${target} from ${source} for ${Math.round(optimalPercentage*100)}% of money`);
 
-        launchHackCycle(ns, ServerNames.Home, source, target, 
-            threadSummary.weaken, threadSummary.growth, threadSummary.hack);
+        launchHackCycleSingle(ns, source, target, 
+            threadSummary.weaken, threadSummary.growth, threadSummary.hack, 1000);
 
         updateFreeMemoryMap(ns, freeMemoryMap, source, threadSummary);
     }

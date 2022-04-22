@@ -20,16 +20,16 @@ export function share(ns: NS, host: string, threads: number): void {
     ns.exec(MyScriptNames.Share, host, threads, getUid());
 }
 
-export function launchHackCycle(ns: NS, processHost: string, subprocessHost: string, 
+export function launchHackCycleSingle(ns: NS, processHost: string, 
         target: string, weakenThreads: number, growThreads: number,
-        hackThreads: number): void {
-    ns.exec(MyScriptNames.HackByPercentage, processHost, 1, target, subprocessHost, weakenThreads, growThreads, hackThreads);
+        hackThreads: number, memory: number): void {
+    ns.exec(MyScriptNames.HackByPercentageSingle, processHost, 1, processHost, target, weakenThreads, growThreads, hackThreads, memory, getUid());
 }
 
-export function launchHackCycleSingle(ns: NS, source: string, 
+export function launchHackCyclePart(ns: NS, source: string, 
         target: string, weakenThreads: number, growThreads: number,
         hackThreads: number, memory: number, isLastInSeries: boolean): void {
-    ns.exec(MyScriptNames.HackByPercentageSingle, source, 1, source, target, weakenThreads, growThreads, hackThreads, memory, isLastInSeries, getUid());
+    ns.exec(MyScriptNames.HackByPercentagePart, source, 1, source, target, weakenThreads, growThreads, hackThreads, memory, isLastInSeries, getUid());
 }
 
 export function launchHackCycleSet(ns: NS, source: string, 
@@ -39,6 +39,6 @@ export function launchHackCycleSet(ns: NS, source: string,
         threadsSummary.repetitions, memoryUsage, getUid());
 }
 
-export function launchPrepare(ns: NS, source: string, target: string, weakenThreads: number, growThreads: number, memory: number): void {
-    ns.exec(MyScriptNames.Prepare, source, 1, source, target, weakenThreads, growThreads, memory, getUid());
+export function launchPrepare(ns: NS, source: string, target: string, memory: number): void {
+    ns.exec(MyScriptNames.Prepare, source, 1, source, target, memory, getUid());
 }

@@ -160,3 +160,43 @@ export function padLeft(s: string, size: number, padder: string) : string {
 export function intBetween(first: number, last: number): number {
     return Math.floor(first + Math.random() * (1+last-first));
 }
+
+export function shuffle<T>(array: Array<T>): Array<T> {
+    let currentIndex = array.length,  randomIndex;
+    
+    // While there remain elements to shuffle.
+    while (currentIndex != 0) {
+    
+        // Pick a remaining element.
+        randomIndex = Math.floor(Math.random() * currentIndex);
+        currentIndex--;
+    
+        // And swap it with the current element.
+        [array[currentIndex], array[randomIndex]] = [
+        array[randomIndex], array[currentIndex]];
+    }
+    
+    return array;
+}
+
+export function average<T>(array: Array<T>, mapper: (value: T) => number): number {
+    if (array.length === 0) {
+        return 0;
+    }
+    
+    let sum = 0;
+
+    array.forEach(v => sum += mapper(v));
+
+    return sum / array.length;
+}
+
+export function basicSumHasher(value: string): number {
+    let sum = 0;
+
+    for (let i=0; i<value.length; i++) {
+        sum += value.charCodeAt(i);
+    }
+
+    return sum;
+}

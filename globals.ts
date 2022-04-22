@@ -19,6 +19,7 @@ class ScriptNames {
     public HackByPercentage = "hack-percentage.js";
     public LogCollect = "log-collect.js";
     public LogPrune = "log-prune.js";
+    public ManageGangs = "manage-gangs.js";
     public FactionGain = "faction-gain.js";
     public PortLogger = "port-logger.js";
     public Share = "share.js";
@@ -30,6 +31,7 @@ class ScriptNames {
     public SpinHackLevel = "spin-hack-level.js";
 
     public HackByPercentageSingle = "hack-percentage-single.js";
+    public HackByPercentagePart = "hack-percentage-part.js";
     public HackByPercentageSet = "hack-percentage-set.js";
     public Prepare = "prepare.js";
 }

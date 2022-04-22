@@ -6,6 +6,8 @@ const securityFocusProportion = 1.2;
 export const starterOffsetTimeMilliseconds = 7500;
 export const completionBufferTimeMilliseconds = 2500;
 
+const incrementsCache = new Map<string, Array<number>>();
+
 export class HackThreadSummary {
     constructor(
         public hack: number,
@@ -15,7 +17,7 @@ export class HackThreadSummary {
         public repetitions: number) {
     }
 
-    public get total(): number {
+    public get totalThreads(): number {
         return this.hack + this.growth + this.weaken;
     }
 
@@ -43,7 +45,7 @@ export class PrepareThreadSummary {
     }
 }
 
-export function getTotalThreadsForAttack(ns: NS, source: string, target: string, hackPercent: number): HackThreadSummary {
+export function getCurrentTotalThreadsForAttack(ns: NS, source: string, target: string, hackPercent: number): HackThreadSummary {
     if (hackPercent > .999 || hackPercent < 0.001) {
         throw "hackPercent must be between 0 and 1";
     }
@@ -63,6 +65,135 @@ export function getTotalThreadsForAttack(ns: NS, source: string, target: string,
         Math.ceil(requiredWeakenThreads), 
         hackPercent,
         1);
+}
+
+export function getIdealTotalThreadsForAttack(ns: NS, source: string, target: string, hackPercent: number): HackThreadSummary {
+    if (hackPercent > .999 || hackPercent < 0.001) {
+        throw "hackPercent must be between 0 and 1";
+    }
+
+    const toSteal = hackPercent * ns.getServerMaxMoney(target);
+
+    const requiredHackThreads = Math.max(1, Math.floor(ns.hackAnalyzeThreads(target, toSteal)));
+    const requiredGrowthPercent = 1/(1-hackPercent);
+    const requiredGrowthThreads = Math.ceil(growWeakenBuffer * ns.growthAnalyze(target, requiredGrowthPercent, ns.getServer(source).cpuCores));
+    const securityDeficit = ns.growthAnalyzeSecurity(requiredGrowthThreads)
+        + (ns.hackAnalyzeSecurity(requiredHackThreads));
+    const requiredWeakenThreads = Math.ceil(growWeakenBuffer * (securityDeficit / Costs.weakenSecurityReductionPerThread));
+
+    return new HackThreadSummary(
+        Math.max(1, requiredHackThreads), 
+        Math.max(1, requiredGrowthThreads), 
+        Math.max(1, requiredWeakenThreads), 
+        hackPercent,
+        1);
+}
+
+export function getIdealTotalThreadsForAttackWithReps(ns: NS, source: string, target: string, hackPercent: number, reps: number): HackThreadSummary {
+    const ideal = getIdealTotalThreadsForAttack(ns, source, target, hackPercent);
+    ideal.repetitions = reps;
+    return ideal;
+}
+
+
+export function getOptimalHackPercentageBinarySearch(ns: NS, source: string, target: string, maxPercent: number, memory: number, repetitions: number)
+        : (HackThreadSummary | null) {
+    if (maxPercent > 0.999) {
+        throw `maxPercent must be <= 0.999`;
+    }
+
+    const incrementArray = getIncrementArray(0.001, maxPercent, 1000);
+
+    const minValue = getIdealTotalThreadsForAttackWithReps(ns, source, target, incrementArray[0], repetitions);
+
+    if (!attackFitsInMemory(ns, memory, minValue)) {
+        return null;
+    }
+
+    const maxValue = getIdealTotalThreadsForAttackWithReps(ns, source, target, incrementArray[incrementArray.length-1], repetitions);
+
+    if (attackFitsInMemory(ns, memory, maxValue)) {
+        return maxValue;
+    }
+
+    let left = 0, right = incrementArray.length-1;
+
+    while (left <= right) {
+        const mid = Math.floor(left + (right-left)/2);
+
+        const midValue = getIdealTotalThreadsForAttackWithReps(ns, source, target, incrementArray[mid], repetitions);
+        const midPlusOneValue = getIdealTotalThreadsForAttackWithReps(ns, source, target, incrementArray[mid+1], repetitions);
+        
+        const midFits = attackFitsInMemory(ns, memory, midValue);
+        const midPlusOneFits = attackFitsInMemory(ns, memory, midPlusOneValue);
+
+        if (midFits && !midPlusOneFits) {
+            return midValue;
+        }
+        else if (!midFits) {
+            right = mid-1;
+        }
+        else {
+            left = mid+1;
+        }
+    }
+
+    return null;
+}
+
+
+function attackFitsInMemory(
+    ns: NS, 
+    memory: number, 
+    threads: HackThreadSummary
+): boolean {
+    const attackMemory = threads.totalMemory(ns);
+
+    return attackMemory < memory;
+}
+
+
+function getIncrementArray(min: number, max: number, incrementCount: number): Array<number> {
+    const incrementArray: Array<number> = [];
+
+    const key = `${min}:${max}:${incrementCount}`;
+
+    if (incrementsCache.has(key)) {
+        return <Array<number>>incrementsCache.get(key);
+    }
+
+    for (let currentIncrement = 0; currentIncrement <= incrementCount; currentIncrement++) {
+        const next = min + (max-min) * (currentIncrement/incrementCount)
+        incrementArray.push(next);
+    }
+
+    incrementsCache.set(key, incrementArray);
+
+    return incrementArray;
+}
+
+export function getGrowThreadsForMemory(ns: NS, source: string, target: string, maxMemory: number): number {
+    const idealThreads = getIdealGrowthThreads(ns, source, target);
+    const maxMemoryThreads = Math.floor(maxMemory / ns.getScriptRam(MyScriptNames.Grow));
+
+    return Math.min(idealThreads, maxMemoryThreads);
+}
+
+function getIdealGrowthThreads(ns: NS, source: string, target: string): number {
+    const targetGrowthNeeded = ns.getServerMaxMoney(target) / ns.getServerMoneyAvailable(target);
+    return Math.ceil(ns.growthAnalyze(target, targetGrowthNeeded, ns.getServer(source).cpuCores));
+}
+
+export function getWeakenThreadsForMemory(ns: NS, source: string, target: string, maxMemory: number): number {
+    const idealThreads = getIdealWeakenThreads(ns, target);
+    const maxMemoryThreads = Math.floor(maxMemory / ns.getScriptRam(MyScriptNames.Weaken));
+
+    return Math.min(idealThreads, maxMemoryThreads);
+}
+
+function getIdealWeakenThreads(ns: NS, target: string): number {
+    const securityDeficit = ns.getServerSecurityLevel(target) - ns.getServerMinSecurityLevel(target);
+    return Math.ceil(Math.max(securityDeficit / Costs.weakenSecurityReductionPerThread));
 }
 
 export function getPrepareSummary(ns:NS, source: string, target: string, maxMemory: number): PrepareThreadSummary { 
@@ -135,4 +266,12 @@ function scalePrepareToMaxMemory(ns: NS, summary: PrepareThreadSummary, maxMemor
     // we're okay with scaling up unnecessarily
     const ratio = maxMemory / totalScriptMemory;
     return new PrepareThreadSummary(ratio * summary.growth, ratio * summary.weaken);
+}
+
+export function needsWeaken(ns: NS, target: string): boolean {
+    return ns.getServerSecurityLevel(target) > ns.getServerMinSecurityLevel(target) * 1.02;
+}
+
+export function needsGrow(ns: NS, target: string): boolean {
+    return ns.getServerMoneyAvailable(target) < ns.getServerMaxMoney(target) * 0.98;
 }

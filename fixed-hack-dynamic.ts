@@ -1,7 +1,7 @@
 import { NS } from '@ns'
 import { Costs, MyScriptNames } from '/globals';
-import { getCurrentTotalThreadsForAttack, HackThreadSummary } from '/hack-percentage-lib';
-import { grow, hack, weaken } from '/process-launchers';
+import { getCurrentTotalThreadsForAttack, getOptimalHackPercentageBinarySearch, HackThreadSummary } from '/hack-percentage-lib';
+import { grow, hack, launchHackCyclePart, weaken } from '/process-launchers';
 
 const sourceMemoryAllocation = 0.8;
 const hackMax = 0.9;
@@ -23,7 +23,15 @@ export async function main(ns : NS) : Promise<void> {
         return;
     }
 
-    while (true) {    
+    let idealThreads = getOptimalHackPercentageBinarySearch(ns, source, target, 0.999, fixedMemoryAllocation, 1);
+
+    if (!idealThreads) {
+        ns.tprint(`ERROR: No thread configuration will fit into memory ${memoryAvailable}GB`);
+        return;
+    }
+
+    while (true) { 
+
         if (needWeaken(ns, target)) {
             await doWeaken(ns, source, target);
         }        
@@ -31,7 +39,8 @@ export async function main(ns : NS) : Promise<void> {
             await doGrow(ns, source, target);
         }
         else {
-            await doHack(ns, source, target);
+            idealThreads = getOptimalHackPercentageBinarySearch(ns, source, target, 0.999, fixedMemoryAllocation, 1);
+            await doHack(ns, source, target, <HackThreadSummary>idealThreads);
         }
     }
 }
@@ -44,15 +53,12 @@ function needWeaken(ns: NS, target: string): boolean {
     return ns.getServerSecurityLevel(target) > ns.getServerMinSecurityLevel(target)*1.01;
 }
 
-async function doHack(ns: NS, source: string, target: string): Promise<void> {
-    const maxThreadsByMemory = Math.floor(serverMemory(ns, source) / ns.getScriptRam(MyScriptNames.Hack));
-    const amountToHack = Math.min(1 - (ns.getServerMoneyAvailable(target)/ns.getServerMaxMoney(target)), hackMax);
-    const idealThreads = Math.ceil(amountToHack / ns.hackAnalyze(target));
+async function doHack(ns: NS, source: string, target: string, threadSummary: HackThreadSummary): Promise<void> {
+    grow(ns, source, target, threadSummary.growth);
+    hack(ns, source, target, threadSummary.hack);
+    weaken(ns, source, target, threadSummary.weaken);
 
-    const actualThreads = Math.max(Math.ceil(amountToHack / ns.hackAnalyze(target)), 1);
- 
-    hack(ns, source, target, actualThreads); 
-    await ns.sleep(ns.getHackTime(target) + 1000);
+    await ns.sleep(ns.getWeakenTime(target) + 1000);
 }
 
 async function doGrow(ns: NS, source: string, target: string): Promise<void> {

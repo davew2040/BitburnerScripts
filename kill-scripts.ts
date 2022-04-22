@@ -6,7 +6,8 @@ const protectedScripts = [
     MyScriptNames.AddOverview,
     MyScriptNames.KillScripts,
     MyScriptNames.LogCollect,
-    MyScriptNames.LogPrune
+    MyScriptNames.LogPrune,
+    MyScriptNames.ManageGangs
 ]
 
 export async function main(ns : NS) : Promise<void> {

@@ -4,7 +4,7 @@ import { exploreServers } from '/utilities';
 
 export const privateServerPrefix = 'pserv';
 
-const sourcesExcludeList = ["foodnstuff", "pserv-1", "pserv-2", "pserv-7"];
+const sourcesExcludeList = ["foodnstuff", "pserv-1"];
 
 export class ServerStore {
 	private _stolenServers: Array<string> = [];
