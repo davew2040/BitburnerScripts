@@ -1,7 +1,7 @@
 import { NS } from '@ns'
 
 /** @param {NS} ns **/
-export async function main(ns: any) {
+export async function main(ns: NS) {
     const doc = eval('document');
     const hook0 = doc.getElementById('overview-extra-hook-0');
     const hook1 = doc.getElementById('overview-extra-hook-1');
@@ -11,7 +11,7 @@ export async function main(ns: any) {
             const values = [];
 
             headers.push("Total Karma: ");
-            values.push('   ' + ns.nFormat(ns.heart.break(), '0,0'));
+            values.push('   ' + ns.nFormat((<any>ns).heart.break(), '0,0.00'));
 
             if (ns.gang.inGang()) {
                 if (ns.gang.getGangInformation()['moneyGainRate'] > 0) {

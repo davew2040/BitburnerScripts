@@ -275,3 +275,15 @@ export function needsWeaken(ns: NS, target: string): boolean {
 export function needsGrow(ns: NS, target: string): boolean {
     return ns.getServerMoneyAvailable(target) < ns.getServerMaxMoney(target) * 0.98;
 }
+
+export function sequentialServerGainRate(ns: NS, percentage: number, server: string, bufferTime: number): number {
+    const serverInfo = ns.getServer(server);
+    serverInfo.hackDifficulty = serverInfo.minDifficulty;
+
+    const hackAmount = (serverInfo.moneyMax * percentage) 
+        * ns.formulas.hacking.hackChance(serverInfo, ns.getPlayer());
+    const time =  ns.formulas.hacking.weakenTime(serverInfo, ns.getPlayer()) + bufferTime;
+    const rate = hackAmount / time;
+
+    return rate;
+}

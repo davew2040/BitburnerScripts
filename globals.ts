@@ -34,6 +34,10 @@ class ScriptNames {
     public HackByPercentagePart = "hack-percentage-part.js";
     public HackByPercentageSet = "hack-percentage-set.js";
     public Prepare = "prepare.js";
+
+    public MinimalGrow = "minimal-grow.js";
+    public MinimalWeaken = "minimal-weaken.js";
+    public MinimalHack = "minimal-hack.js";
 }
 
 export class Ports {

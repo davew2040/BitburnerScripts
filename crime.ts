@@ -1,24 +1,5 @@
-import { NS } from '@ns';
-import { getPrivateServerName, serverStore } from '/server-store';
+import { CrimeStats, NS } from '@ns';
 import { orderBy, orderByDescending } from '/utilities';
-
-class GangTasks {
-    public static Unassigned = 'Unassigned';
-    public static MugPeople = 'Mug People';
-    public static DealDrugs = 'Deal Drugs';
-    public static StrongarmCivilians = 'Strongarm Civilians';
-    public static RunACon = 'Run a Con';
-    public static ArmedRobbery = 'Armed Robbery';
-    public static TraffickIllegalArms = 'Traffick Illegal Arm';
-    public static ThreatenBlackmail = 'Threaten & Blackmail';
-    public static HumanTrafficking = 'Human Trafficking';
-    public static Terrorism = 'Terrorism';
-    public static VigilanteJustice = 'Vigilante Justice';
-    public static TrainCombat = 'Train Combat';
-    public static TrainHacking = 'Train Hacking';
-    public static TrainCharisma = 'Train Charisma';
-    public static TerritoryWarfare = 'Territory Warfare';
-}
 
 enum Crimes {
     Shoplift,
@@ -33,6 +14,15 @@ enum Crimes {
     KidnapAndRansom,
     Assassinate,
     Heist
+}
+
+enum MaximizeType {
+    Money,
+    Karma,
+    Strength,
+    Dexterity,
+    Defense,
+    Agility
 }
 
 class CrimeLabels {
@@ -66,11 +56,18 @@ const crimeLabelMap = new Map<Crimes, string>([
 ]);
 
 const sleepTimeMilliseconds = 3000;  
+const pollingIntervalMilliseconds = 300;
+const maximizeType = MaximizeType.Karma;
  
 export async function main(ns : NS) : Promise<void> {
     while (true) {
         const mostProfitable = findMostProfitableCrime(ns);
         await commitCrime(ns, <string>crimeLabelMap.get(mostProfitable));
+        ns.tail();
+
+        while (ns.isBusy()) {
+            await ns.sleep(pollingIntervalMilliseconds);
+        }
     }
 }
 
@@ -86,13 +83,38 @@ function getCrimeRate(ns: NS, crime: Crimes): number {
     const crimeLabel = <string>crimeLabelMap.get(crime);
     const stats = ns.getCrimeStats(crimeLabel);
     const chance = ns.getCrimeChance(crimeLabel);
-    return chance * (stats.money / (stats.time + sleepTimeMilliseconds));
+
+    return chance * (getRateValueByType(stats, maximizeType) / (stats.time + pollingIntervalMilliseconds));
 }
 
-async function commitCrime(ns: NS, crime: string): Promise<void> {
+function getRateValueByType(stats: CrimeStats, type: MaximizeType): number {
+    if (type === MaximizeType.Karma) {
+        return stats.karma;
+    }
+    else if (type === MaximizeType.Money) {
+        return stats.money;
+    }
+    else if (type === MaximizeType.Agility) {
+        return stats.agility_exp;
+    }
+    else if (type === MaximizeType.Strength) {
+        return stats.strength_exp;
+    }
+    else if (type === MaximizeType.Defense) {
+        return stats.defense_exp;
+    }
+    else if (type === MaximizeType.Dexterity) {
+        return stats.dexterity_exp;
+    }
+    else {
+        throw `Unrecognized maximize type ${maximizeType}`;
+    }
+}
+
+async function commitCrime(ns: NS, crime: string): Promise<number> {
     const stats = ns.getCrimeStats(crime);
     ns.commitCrime(crime);
-    await ns.sleep(stats.time + sleepTimeMilliseconds);
+    return stats.time;
 }
 
 function enumCrimes(): Crimes[] {

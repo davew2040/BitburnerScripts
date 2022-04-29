@@ -13,7 +13,7 @@ export async function main(ns : NS) : Promise<void> {
 
     const source = <string>ns.args[0];
     const target = <string>ns.args[1];
-    const percentage = <number>ns.args[2];
+    const percentage = <number>ns.args[2] / 100;
     const concurrent = <boolean>ns.args[3];
 
     const threadSummary = getIdealTotalThreadsForAttack(ns, source, target, percentage);
@@ -24,6 +24,7 @@ export async function main(ns : NS) : Promise<void> {
         ns.tprint(`Requiredy memory ${memoryRequired}, have ${memoryAvailable} available`);
         return;
     }
+
 
     while (true) {
         if (needGrow(ns, target)) {

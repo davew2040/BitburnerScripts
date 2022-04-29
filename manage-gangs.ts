@@ -32,6 +32,7 @@ enum Cycles {
     Fighting
 }
 
+
 const cycleTimeMilliseconds = 60*1000;
 const usefulStrengthMinimum = 200;
 const maxAcceptableWantedLevel = 40;
@@ -40,6 +41,7 @@ const minimumAscendFactor = 1.5;
 const minimumAscendFactorAfterRecruit = 1.15;
 const ascendLimiter = 15;
 const usefulPercentage = 0.75;
+const shouldProcessAscends = false;
 
 let lastAscendCycle = -1000;
 let currentCycle = Cycles.Fighting;
@@ -48,8 +50,6 @@ let cycleCount = 0;
 export async function main(ns : NS) : Promise<void> {
     await startFightAndTrainLoop(ns);
 }
-
-
 
 const ascensionCutoffTable = new Map<number, number>([
     [0, 1.22],
@@ -191,7 +191,13 @@ function allocateUsefulMembers(ns: NS, pool: Array<string>): Array<string> {
 function decideFightTask(ns: NS, member: string): string { 
     const territory = (<any>ns.gang.getOtherGangInformation())[getCurrentGang()].territory;
 
-    if (ns.gang.getMemberInformation(member).str > 30000) {
+    if (ns.gang.getMemberInformation(member).str > 300000) {
+        return GangTasks.Terrorism;
+    }
+    else if (ns.gang.getMemberInformation(member).str > 45000) {
+        return GangTasks.TraffickIllegalArms;
+    }
+    else if (ns.gang.getMemberInformation(member).str > 30000) {
         return GangTasks.ArmedRobbery;
     }
     else if (ns.gang.getMemberInformation(member).str > 16000) {
@@ -241,6 +247,10 @@ function setTraining(ns: NS): void {
 }
 
 function doAscend(ns: NS, cutoff: number): void {
+    if (!shouldProcessAscends) {
+        return;
+    }
+
     const canAscend = ns.gang.getMemberNames().filter(m => ns.gang.getAscensionResult(m));
     const ordered = orderBy(canAscend, m => (<GangMemberAscension>ns.gang.getAscensionResult(m)).str);
 

@@ -119,7 +119,7 @@ export function formatNumber(someNumber: number): string {
         return `${(someNumber/1000).toFixed(2)}k`; 
     }
     else {
-        return someNumber.toString();
+        return someNumber.toFixed(2).toString();
     }
 }
 
@@ -150,11 +150,13 @@ export function orderByDescending<T>(values: Array<T>, mapper: (value:T) => numb
 }
 
 export function padLeft(s: string, size: number, padder: string) : string {
+    let buffer = "";
+
     for (let i=0; i<size-s.length; i++) {
-        s = padder + s;
+        buffer = padder + buffer;
     }
 
-    return s;
+    return buffer + s;
 }
 
 export function intBetween(first: number, last: number): number {
@@ -199,4 +201,36 @@ export function basicSumHasher(value: string): number {
     }
 
     return sum;
+}
+
+export function printSpread(ns: NS, min: number, max: number): void { 
+    let buffer = "";
+
+    for (let i=0; i<10; i++) {
+        const value = min + (max-min)*Math.random();
+        buffer += (`[${i}, ${value.toFixed(2)}],\n`);
+    }
+
+    ns.tprint(buffer);
+}
+
+export function throws(fn: (() => void)): boolean {
+    let loaded = true;
+    
+    try {
+        fn();
+    }
+    catch (e) {
+        loaded = false;
+    }
+
+    return loaded;
+}
+
+export function crimeLibraryAvailable(ns: NS): boolean {
+    return throws(() => ns.getCrimeStats("Rob a Store"));
+}
+
+export function formulasAvailable(ns: NS): boolean {
+    return throws(() => ns.formulas.hacking.growTime(ns.getServer(ServerNames.Home), ns.getPlayer());
 }

@@ -1,4 +1,5 @@
 import { NS } from '@ns';
+import { exploitServer } from '/explore-lib';
 import { exploreServersAsync, formatNumber } from '/utilities';
 
 
@@ -9,6 +10,13 @@ export async function main(ns : NS) : Promise<void> {
 } 
 
 async function visit(ns: NS, hostName: string, parent: string) {
+    try {
+        await exploitServer(ns, hostName);
+    }
+    catch (e) {
+        ns.print(`Error = ${e}`);
+    }
+
     ns.tprint(`servername = ${hostName}, parent = ${parent},`
         + ` money = $${formatNumber(ns.getServerMoneyAvailable(hostName))}/$${formatNumber(ns.getServerMaxMoney(hostName))},`
         + ` security = ${ns.getServerSecurityLevel(hostName)} (min = ${ns.getServerMinSecurityLevel(hostName)})`
@@ -16,33 +24,4 @@ async function visit(ns: NS, hostName: string, parent: string) {
         + ` ram = ${ns.getServerMaxRam(hostName)}`
         + ` grow factor = ${ns.getServerGrowth(hostName)}`
     );
-
-    try {
-        if (ns.fileExists("brutessh.exe")) {
-            await ns.brutessh(hostName);
-        }
-        if (ns.fileExists("ftpcrack.exe")) {
-            await ns.ftpcrack(hostName);
-        }
-        if (ns.fileExists("relaySMTP.exe")) {
-            await ns.relaysmtp(hostName);
-        }
-        if (ns.fileExists("HTTPWorm.exe")) {
-            await ns.httpworm(hostName);
-        }
-        if (ns.fileExists("SQLInject.exe")) {
-            await ns.sqlinject(hostName);
-        }
-        
-        await ns.nuke(hostName); 
-    }
-    catch (e) {
-        ns.tprint(`ERROR = ${e}`); 
-    }
-}
-
-async function getRooted(ns: NS, hostName: string, rooted: Array<string>) {
-    if (ns.hasRootAccess(hostName)) {
-        rooted.push(hostName);
-    }
 }

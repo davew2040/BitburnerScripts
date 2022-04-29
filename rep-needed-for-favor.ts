@@ -10,7 +10,7 @@ formula adapted from Faction.js/getFavorGain(), Company.js/getFavorGain() and Co
     @author sschmidTU
 */
 
-function repNeededForFavor(targetFavor: number): number {
+function repNeededForFavorOld(targetFavor: number): number {
     
     let favorGain = 0;
     let rep = 0;
@@ -28,11 +28,21 @@ function repNeededForFavor(targetFavor: number): number {
     return rep;
 }
 
-export async function main(ns: NS) {
-    const targetFavor = <number>ns.args[0];
+function repNeededForFavor(favor: number): number {
+    const r = (Math.pow(1.02, favor-1) * 25500) - 25000;
 
-    const repNeeded = repNeededForFavor(targetFavor);
-    
-    ns.tprint('you need ' + repNeeded.toLocaleString() + ' total reputation with a faction or company'
-        + ' to get to ' + targetFavor + ' favor.');
+    return r;
+}
+
+export async function main(ns: NS) {
+    const end = <number>ns.args[0];
+    let start = 0;
+    if (ns.args[1]) {
+        start = <number>ns.args[1];
+    }
+
+    const repNeeded = repNeededForFavor(end) - repNeededForFavor(start);
+      
+    ns.tprint(`You need ${Math.floor(repNeeded)} total reputation with a faction or company`
+        + ` to get from ${start} to ${end} favor.`);
 }

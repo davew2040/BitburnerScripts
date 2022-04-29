@@ -4,12 +4,9 @@ import { exploreServers } from '/utilities';
 
 export const privateServerPrefix = 'pserv';
 
-const sourcesExcludeList = ["foodnstuff", "pserv-1"];
+const sourcesExcludeList = ["foodnstuff"];
 
 export class ServerStore {
-	private _stolenServers: Array<string> = [];
-	private _targetServers: Array<string> = [];
-
 	getControlledSources(ns: NS): Array<string> {
 		return [ServerNames.Home, ...ns.getPurchasedServers(), ...this.getStolenServers(ns)];
 	}
@@ -20,7 +17,7 @@ export class ServerStore {
 	}
 
 	getStolenServers(ns: NS): Array<string> {
-		return  findStolenServers(ns);
+		return findStolenServers(ns);
 	}
 
 	getPotentialTargets(ns: NS): Array<string> {
@@ -53,7 +50,7 @@ function isNotOwned(ns: NS, hostName: string): boolean {
 function findStolenServers(ns: NS) {
 	const stolen: Array<string> = [];
 
-	exploreServers(ns, 7, serverName => {
+	exploreServers(ns, 16, serverName => {
 		if (ns.hasRootAccess(serverName)) {
 			stolen.push(serverName);
 		}

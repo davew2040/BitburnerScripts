@@ -1,14 +1,14 @@
 import { NS, ProcessInfo } from '@ns'
-import { MyScriptNames } from '/globals';
+import { MyScriptNames, ServerNames } from '/globals';
 import { HackMessageQueue } from '/hack-message-queue';
-import { getIdealHackRepetitions, getOptimalHackPercentageBinarySearch, needsGrow, needsWeaken } from '/hack-percentage-lib';
+import { completionBufferTimeMilliseconds, getIdealHackRepetitions, getOptimalHackPercentageBinarySearch, needsGrow, needsWeaken, sequentialServerGainRate } from '/hack-percentage-lib';
 import { hackSetArgumentMemory, hackSetArgumentTarget } from '/hack-percentage-set';
 import { hackSingleArgumentMemory, hackSingleArgumentTarget } from '/hack-percentage-single';
 import { PortLogger, PortLoggerType } from '/port-logger';
 import { prepareArgumentMemory, prepareArgumentTarget } from '/prepare';
 import { launchHackCycleSet, launchHackCycleSingle, launchPrepare } from '/process-launchers';
 import { serverStore } from '/server-store';
-import { getMaxMemoryAvailable, orderBy, orderByDescending } from '/utilities';
+import { crimeLibraryAvailable, formulasAvailable, getMaxMemoryAvailable, orderByDescending } from '/utilities';
 
 const watcherCycleTime = 1000;
 const defaultLogger = new PortLogger(PortLoggerType.LogDefault);
@@ -45,7 +45,7 @@ interface AttackConfiguration {
 }
 
 const config: AttackConfiguration = {
-    maxMemory: 900,
+    maxMemory: 100,
     maxPercentage: 0.9,
     maxConcurrent: 10,
     maxServers: 10
@@ -159,7 +159,7 @@ function buildServerState(ns: NS, maxMemory: number): ServerState {
 }
 
 async function startMissingProcesses(ns: NS, serverState: ServerState): Promise<void> {
-    const targets = orderBy(getCandidateTargets(ns), s => ns.getServerMaxMoney(s));
+    const targets = getOrderedCandidateTargets(ns);
 
     for (const target of targets) {
         if (!serverState.hasTarget(target)) {
@@ -252,6 +252,36 @@ function getServerWithMemory(ns: NS, memory: number, serverState: ServerState): 
 
 function serverNeedsPrepare(ns: NS, target: string): boolean {
     return needsGrow(ns, target) || needsWeaken(ns, target);
+}
+
+function getOrderedCandidateTargets(ns:NS): Array<string> {
+    const targets = getCandidateTargets(ns);
+
+    if (formulasAvailable(ns)) {
+        return orderByDescending(targets, s => getOptimalGainRate(ns, s, config.maxMemory));
+    }
+    else {
+        return orderByDescending(targets, s => ns.getServerMaxMoney(s));
+    }
+}
+
+function getOptimalGainRate(ns: NS, server: string, maxMemory: number): number {
+    const optimalPercentage = getOptimalHackPercentageBinarySearch(
+        ns, 
+        ServerNames.Noodles, 
+        server, 
+        config.maxPercentage, 
+        maxMemory, 
+        1
+    );
+
+    if (optimalPercentage) {
+        const percentage = optimalPercentage.percentage;
+        return sequentialServerGainRate(ns, percentage, server, completionBufferTimeMilliseconds);
+    }
+    else {
+        return 0;
+    }
 }
 
 function getCandidateTargets(ns:NS): Array<string> {

@@ -16,6 +16,19 @@ export function weaken(ns: NS, source: string, target: string, threads: number):
     ns.exec(MyScriptNames.Weaken, source, threads, target, getUid());
 }
 
+export function minimalHack(ns: NS, source: string, target: string, threads: number): void {
+    ns.exec(MyScriptNames.MinimalHack, source, threads, target, getUid());
+}
+
+export function minimalGrow(ns: NS, source: string, target: string, threads: number): void {
+    ns.exec(MyScriptNames.MinimalGrow, source, threads, target, getUid());
+}
+
+export function minimalWeaken(ns: NS, source: string, target: string, threads: number): void {
+    ns.exec(MyScriptNames.MinimalWeaken, source, threads, target, getUid());
+}
+
+
 export function share(ns: NS, host: string, threads: number): void {
     ns.exec(MyScriptNames.Share, host, threads, getUid());
 }
