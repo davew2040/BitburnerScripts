@@ -1,7 +1,7 @@
 import { GangMemberAscension, NS } from '@ns';
 import { notStrictEqual } from 'assert';
 import { ServerNames } from '/globals';
-import { average, basicSumHasher, intBetween as randomIntBetween, orderBy, orderByDescending, shuffle } from '/utilities';
+import { average, basicSumHasher, intBetween as randomIntBetween, orderBy, orderByDescending, removeFromArray, shuffle } from '/utilities';
 
 class GangTasks {
     public static Unassigned = 'Unassigned';
@@ -32,8 +32,24 @@ enum Cycles {
     Fighting
 }
 
+enum OptimizeFor {
+    Money,
+    Respect
+}
 
-const cycleTimeMilliseconds = 60*1000;
+const allCrimes = [
+    GangTasks.MugPeople,
+    GangTasks.DealDrugs,
+    GangTasks.StrongarmCivilians,
+    GangTasks.RunACon,
+    GangTasks.ArmedRobbery,
+    GangTasks.TraffickIllegalArms,
+    GangTasks.ThreatenBlackmail,
+    GangTasks.HumanTrafficking,
+    GangTasks.Terrorism
+];
+
+const cycleTimeMilliseconds = 60*1500;
 const usefulStrengthMinimum = 200;
 const maxAcceptableWantedLevel = 40;
 const territoryAllocation = 0.3;
@@ -41,7 +57,10 @@ const minimumAscendFactor = 1.5;
 const minimumAscendFactorAfterRecruit = 1.15;
 const ascendLimiter = 15;
 const usefulPercentage = 0.75;
-const shouldProcessAscends = false;
+const shouldProcessAscends = true;
+const desiredVigilanteToCrimeRatio = 2.0;
+const averageClashWinRequirement = 0.7;
+const currentGoal = OptimizeFor.Money;
 
 let lastAscendCycle = -1000;
 let currentCycle = Cycles.Fighting;
@@ -55,40 +74,49 @@ const ascensionCutoffTable = new Map<number, number>([
     [0, 1.22],
     [1, 1.50],
     [2, 1.53],
-    [3, 1.20],
+    [3, 1.40],
     [4, 1.20],
     [5, 1.64],
     [6, 1.32],
     [7, 1.37],
     [8, 1.57],
     [9, 1.21],
-]);
+]); 
 
 async function startFightAndTrainLoop(ns: NS): Promise<void> {
     while (true) {
-        const info = ns.gang.getGangInformation(); 
+        try {
+            const info = ns.gang.getGangInformation(); 
 
-        doRecruit(ns);
-        doAscend(ns, minimumAscendFactor);
-
-        if (currentCycle === Cycles.Fighting) {
-            if (info.wantedLevel > maxAcceptableWantedLevel) {
-                setAllVigilante(ns);
+            doRecruit(ns);
+    
+            if (canAscendAny()) {
+                doAscend(ns, minimumAscendFactor);
+            }
+    
+            if (currentCycle === Cycles.Fighting) {
+                if (info.wantedLevel > maxAcceptableWantedLevel) {
+                    setAllVigilante(ns);
+                }
+                else {
+                    setFighting(ns);
+                }
+    
+                await ns.sleep(cycleTimeMilliseconds);
+                currentCycle = Cycles.Training;
             }
             else {
-                setFighting(ns);
+                setTraining(ns);
+                await ns.sleep(cycleTimeMilliseconds);
+                currentCycle = Cycles.Fighting;
             }
-
-            await ns.sleep(2*cycleTimeMilliseconds);
-            currentCycle = Cycles.Training;
+    
+            cycleCount++;
         }
-        else {
-            setTraining(ns);
+        catch (e) {
+            ns.tprint(`Exception while managing gang: ${e}`);
             await ns.sleep(cycleTimeMilliseconds);
-            currentCycle = Cycles.Fighting;
         }
-
-        cycleCount++;
     }
 }
 
@@ -136,11 +164,11 @@ function shouldClash(ns: NS): boolean {
 
     const averageWinChance = average(gangs, g => ns.gang.getChanceToWinClash(g));
 
-    return averageWinChance > 0.8;
+    return averageWinChance > averageClashWinRequirement;
 }
 
 function allocateTerritory(ns: NS, pool: Array<string>): Array<string> {
-    const toAllocate = 0; //(pool.length - 4) * 0.3;
+    const toAllocate = getTerritoryAllocation(ns); //(pool.length - 4) * 0.3;
 
     for (let i=1; i<=toAllocate; i++) {
         const remove = removeRandomFromArray(pool);
@@ -154,6 +182,20 @@ function allocateTerritory(ns: NS, pool: Array<string>): Array<string> {
     return pool;
 }
 
+function getTerritoryAllocation(ns: NS) {
+    const memberCount = ns.gang.getMemberNames().length;
+    if (memberCount >= 10) {
+        return 4;
+    }
+    else if (memberCount >= 8) {
+        return 2;
+    }
+    else if (memberCount >= 6) {
+        return 1;
+    }
+
+    return 0;
+}
 
 function allocateUsefulMembers(ns: NS, pool: Array<string>): Array<string> {
     pool = allocateTerritory(ns, pool);
@@ -189,29 +231,70 @@ function allocateUsefulMembers(ns: NS, pool: Array<string>): Array<string> {
 }
 
 function decideFightTask(ns: NS, member: string): string { 
-    const territory = (<any>ns.gang.getOtherGangInformation())[getCurrentGang()].territory;
+    return getOptimalGangTask(ns, member);
 
-    if (ns.gang.getMemberInformation(member).str > 300000) {
-        return GangTasks.Terrorism;
+    // if (ns.gang.getMemberInformation(member).str > 300000) {
+    //     return GangTasks.Terrorism;
+    // }
+    // else if (ns.gang.getMemberInformation(member).str > 45000) {
+    //     return GangTasks.TraffickIllegalArms;
+    // }
+    // else if (ns.gang.getMemberInformation(member).str > 30000) {
+    //     return GangTasks.ArmedRobbery;
+    // }
+    // else if (ns.gang.getMemberInformation(member).str > 16000) {
+    //     return GangTasks.RunACon;
+    // }
+    // else if (ns.gang.getMemberInformation(member).str > 12000) {
+    //     return GangTasks.ArmedRobbery;
+    // }
+    // else if (ns.gang.getMemberInformation(member).str > 8000) {
+    //     return GangTasks.StrongarmCivilians;
+    // }
+    // else {
+    //     return GangTasks.MugPeople;
+    // }
+}
+
+function getOptimalGangTask(ns: NS, member: string): string {
+    const acceptableCrimes = allCrimes.filter(c => vigiToCrimeRate(ns, member, c) > 2.0);
+
+    let ordered: Array<string> = [];
+    if (currentGoal === OptimizeFor.Money) {
+        ordered = orderByDescending(acceptableCrimes, c => crimeMoney(ns, member, c));
     }
-    else if (ns.gang.getMemberInformation(member).str > 45000) {
-        return GangTasks.TraffickIllegalArms;
-    }
-    else if (ns.gang.getMemberInformation(member).str > 30000) {
-        return GangTasks.ArmedRobbery;
-    }
-    else if (ns.gang.getMemberInformation(member).str > 16000) {
-        return GangTasks.RunACon;
-    }
-    else if (ns.gang.getMemberInformation(member).str > 12000) {
-        return GangTasks.ArmedRobbery;
-    }
-    else if (ns.gang.getMemberInformation(member).str > 8000) {
-        return GangTasks.StrongarmCivilians;
+    else if (currentGoal === OptimizeFor.Respect) {
+        ordered = orderByDescending(acceptableCrimes, c => crimeRespect(ns, member, c));
     }
     else {
-        return GangTasks.MugPeople;
+        throw `Unrecognized goal ${currentGoal}`;
     }
+
+    return ordered[0];
+}
+
+function vigiToCrimeRate(ns: NS, member: string, crime: string): number {
+    ns.gang.setMemberTask(member, GangTasks.VigilanteJustice);
+
+    const vigiWanted = Math.abs(ns.gang.getMemberInformation(member).wantedLevelGain);
+
+    ns.gang.setMemberTask(member, crime);
+
+    const crimeWanted = ns.gang.getMemberInformation(member).wantedLevelGain;
+
+    return vigiWanted/crimeWanted;
+}
+
+function crimeRespect(ns: NS, member: string, crime: string): number {
+    ns.gang.setMemberTask(member, crime);
+
+    return ns.gang.getMemberInformation(member).respectGain;
+}
+
+function crimeMoney(ns: NS, member: string, crime: string): number {
+    ns.gang.setMemberTask(member, crime);
+
+    return ns.gang.getMemberInformation(member).moneyGain;
 }
 
 function getCurrentGang(): string {
@@ -227,21 +310,24 @@ function setAllVigilante(ns: NS): void {
 }
 
 function setTraining(ns: NS): void {
+    const toAllocate = getTerritoryAllocation(ns);
     const members = ns.gang.getMemberNames();
 
     const territoryMembers: Array<string> = [];
 
-    // const useful = members.filter(m => isUseful(ns, m));
-    // const first = removeRandomFromArray(useful);
-    // territoryMembers.push(first[0]);
-    // const second = removeRandomFromArray(first[1]);
-    // territoryMembers.push(second[0]);
+    let useful = members.filter(m => isUseful(ns, m));
 
-    // for (const member of territoryMembers) {
-    //     ns.gang.setMemberTask(member, GangTasks.TerritoryWarfare);
-    // }
+    for (let i=1; i<=toAllocate; i++) {
+        const remove = removeRandomFromArray(useful);
+        territoryMembers.push(remove[0]);
+        useful = remove[1];
+    }
 
-    for (const member of members.filter(m => territoryMembers.indexOf(m) === -1)) {
+    for (const member of territoryMembers) {
+        ns.gang.setMemberTask(member, GangTasks.TerritoryWarfare);
+    }
+
+    for (const member of useful) {
         ns.gang.setMemberTask(member, GangTasks.TrainCombat);
     }
 }
@@ -252,7 +338,7 @@ function doAscend(ns: NS, cutoff: number): void {
     }
 
     const canAscend = ns.gang.getMemberNames().filter(m => ns.gang.getAscensionResult(m));
-    const ordered = orderBy(canAscend, m => (<GangMemberAscension>ns.gang.getAscensionResult(m)).str);
+    const ordered = orderByDescending(canAscend, m => (<GangMemberAscension>ns.gang.getAscensionResult(m)).str);
 
     for (const member of ordered) {
         if (shouldAscend(ns, member)) {
@@ -293,6 +379,10 @@ function purchaseIfAffordable(ns: NS, member: string, equipment: string): void {
     }
 }
 
+function canAscendAny(): boolean {
+    return cycleCount - lastAscendCycle > ascendLimiter;
+}
+
 function shouldAscend(ns: NS, member: string): boolean {
     const nextResult = ns.gang.getAscensionResult(member);
 
@@ -303,8 +393,7 @@ function shouldAscend(ns: NS, member: string): boolean {
     const next = <GangMemberAscension>nextResult;
     
     return next.str > getAscensionCutoff(ns, member)
-        && (ns.gang.getMemberInformation(member).earnedRespect / totalRespect(ns) < 0.3)
-        && cycleCount - lastAscendCycle > ascendLimiter;
+        && (ns.gang.getMemberInformation(member).earnedRespect / totalRespect(ns) < 0.3);
 }
 
 function getAscensionCutoff(ns: NS, member: string): number {
@@ -325,13 +414,6 @@ function doRecruit(ns: NS): void {
     if (ns.gang.canRecruitMember()) {
         ns.gang.recruitMember(getName(ns));
     }
-}
-
-function removeFromArray<T>(array: Array<T>, index: number): [T, Array<T>] {
-    const target = array[index];
-    const newArray = [...array.slice(0, index), ...array.slice(index+1, array.length)];
-
-    return [target, newArray];
 }
 
 function removeRandomFromArray<T>(array: Array<T>): [T, Array<T>] {

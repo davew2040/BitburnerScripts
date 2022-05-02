@@ -13,6 +13,7 @@ export class ServerNames {
 
 class ScriptNames {
     public AddOverview = "add-overview.js";
+    public Crime = "crime.js";
     public Grow = "grow.js";
     public Weaken = "weaken.js";
     public Hack = "hack.js";
@@ -38,6 +39,16 @@ class ScriptNames {
     public MinimalGrow = "minimal-grow.js";
     public MinimalWeaken = "minimal-weaken.js";
     public MinimalHack = "minimal-hack.js";
+}
+
+export class Factions {
+    public static Aevum = 'Aevum';
+    public static CyberSec = 'CyberSec';
+    public static TheBlackHand = 'The Black Hand';
+}
+
+export class WorkTypes {
+    public static HackingContracts = 'Hacking Contracts';
 }
 
 export class Ports {

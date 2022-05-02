@@ -193,6 +193,13 @@ export function average<T>(array: Array<T>, mapper: (value: T) => number): numbe
     return sum / array.length;
 }
 
+export function removeFromArray<T>(array: Array<T>, index: number): [T, Array<T>] {
+    const target = array[index];
+    const newArray = [...array.slice(0, index), ...array.slice(index+1, array.length)];
+
+    return [target, newArray];
+}
+
 export function basicSumHasher(value: string): number {
     let sum = 0;
 
@@ -232,5 +239,5 @@ export function crimeLibraryAvailable(ns: NS): boolean {
 }
 
 export function formulasAvailable(ns: NS): boolean {
-    return throws(() => ns.formulas.hacking.growTime(ns.getServer(ServerNames.Home), ns.getPlayer());
+    return throws(() => ns.formulas.hacking.growTime(ns.getServer(ServerNames.Home), ns.getPlayer()));
 }

@@ -95,8 +95,7 @@ export function getIdealTotalThreadsForAttackWithReps(ns: NS, source: string, ta
     return ideal;
 }
 
-
-export function getOptimalHackPercentageBinarySearch(ns: NS, source: string, target: string, maxPercent: number, memory: number, repetitions: number)
+export function getOptimalHackPercentageBinarySearchBackup(ns: NS, source: string, target: string, maxPercent: number, memory: number, repetitions: number)
         : (HackThreadSummary | null) {
     if (maxPercent > 0.999) {
         throw `maxPercent must be <= 0.999`;
@@ -142,6 +141,59 @@ export function getOptimalHackPercentageBinarySearch(ns: NS, source: string, tar
 }
 
 
+export function getOptimalHackPercentageBinarySearch(ns: NS, source: string, target: string, maxPercent: number, memory: number, repetitions: number)
+        : (HackThreadSummary | null) {
+    const incrementArray = getIncrementArray(0.001, maxPercent, 1000);
+    const result = binarySearchBreakpoint(incrementArray, 
+        inc => {
+            const value = getIdealTotalThreadsForAttackWithReps(ns, source, target, inc, repetitions);
+            return attackFitsInMemory(ns, memory, value);
+        });
+
+    if (result) {
+        return getIdealTotalThreadsForAttackWithReps(ns, source, target, result, repetitions)
+    }
+
+    return null;
+}
+
+
+// Assumes that there's some point where values switch from being true to being false from 0..n
+export function binarySearchBreakpoint<T>(increments: Array<T>, mapper: (fn: T) => boolean)
+        : (T | null) {
+    const minValue = mapper(increments[0]);
+    if (!minValue) {
+        return null;
+    }
+
+    const maxValue = mapper(increments[increments.length-1]);
+    if (maxValue) {
+        return increments[increments.length-1];
+    }
+
+    let leftIndex = 0, rightIndex = increments.length-1;
+
+    while (leftIndex <= rightIndex) {
+        const midIndex = Math.floor(leftIndex + (rightIndex-leftIndex)/2);
+
+        const midValue = mapper(increments[midIndex]);
+        const midPlusOneValue = mapper(increments[midIndex+1]);
+
+        if (midValue && !midPlusOneValue) {
+            return increments[midIndex];
+        }
+        else if (!midValue) {
+            rightIndex = midIndex-1;
+        }
+        else {
+            leftIndex = midIndex+1;
+        }
+    }
+
+    return null;
+}
+
+
 function attackFitsInMemory(
     ns: NS, 
     memory: number, 
@@ -151,7 +203,6 @@ function attackFitsInMemory(
 
     return attackMemory < memory;
 }
-
 
 function getIncrementArray(min: number, max: number, incrementCount: number): Array<number> {
     const incrementArray: Array<number> = [];
@@ -206,7 +257,7 @@ export function getPrepareSummary(ns:NS, source: string, target: string, maxMemo
     );
 }
 
-function getMixedGrowWeakenSummary(ns:NS, source: string, target: string): PrepareThreadSummary {
+export function getMixedGrowWeakenSummary(ns:NS, source: string, target: string): PrepareThreadSummary {
     const prepareGrowThreads = Math.ceil(
         growWeakenBuffer * ns.growthAnalyze(
             target,  

@@ -84,7 +84,7 @@ function getUsage(): string {
 function printServerStatus(ns: NS): void {
     for (const server of [ServerNames.Home, ...ns.getPurchasedServers()]) {
         const serverDetails = ns.getServer(server);
-        ns.tprint(`Server ${server} has ${formatNumber(serverDetails.maxRam)} GB of RAM`);
+        ns.tprint(`Server ${server} has ${ns.nFormat(serverDetails.maxRam*1000*1000, '0.00b')} of RAM`);
     }
 }
 

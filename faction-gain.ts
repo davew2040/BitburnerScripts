@@ -2,8 +2,6 @@ import { NS } from '@ns'
 import { notStrictEqual } from 'assert';
 import { MyScriptNames, ServerNames } from '/globals';
 import { share } from '/process-launchers';
-import { serverStore } from '/server-store';
-import { getServerMemoryAvailable } from '/utilities';
 
 const memoryConsumption = 0.9;
 
@@ -19,6 +17,6 @@ export async function main(ns : NS) : Promise<void> {
 function getServers(ns: NS): Array<string> {
     //return ns.getPurchasedServers();
     return [
-        "pserv-5",
+        "pserv-2",
     ];
 }

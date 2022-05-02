@@ -8,7 +8,7 @@ import { PortLogger, PortLoggerType } from '/port-logger';
 import { prepareArgumentMemory, prepareArgumentTarget } from '/prepare';
 import { launchHackCycleSet, launchHackCycleSingle, launchPrepare } from '/process-launchers';
 import { serverStore } from '/server-store';
-import { crimeLibraryAvailable, formulasAvailable, getMaxMemoryAvailable, orderByDescending } from '/utilities';
+import { formulasAvailable, getMaxMemoryAvailable, orderByDescending } from '/utilities';
 
 const watcherCycleTime = 1000;
 const defaultLogger = new PortLogger(PortLoggerType.LogDefault);
@@ -45,7 +45,7 @@ interface AttackConfiguration {
 }
 
 const config: AttackConfiguration = {
-    maxMemory: 100,
+    maxMemory: 40000,
     maxPercentage: 0.9,
     maxConcurrent: 10,
     maxServers: 10
@@ -134,6 +134,7 @@ async function startWatcherLoop(ns: NS, serverState: ServerState): Promise<void>
                 serverState.clearTarget(next.target);
             }
         }
+
         await startMissingProcesses(ns, serverState);
         await ns.sleep(watcherCycleTime);
     }
